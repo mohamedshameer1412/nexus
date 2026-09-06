@@ -1,0 +1,11 @@
+question_text,topic_name,difficulty_level,question_type,option_a,option_b,option_c,option_d,correct_answer,subtopic,explanation,model_answer,required_keywords
+Which of the following is a primary color?,Science,1,mcq,Red,Green,Blue,All of the above,D,Colors,Red, Green, and Blue are primary colors.,,
+What is the capital of France?,Geography,1,mcq,London,Paris,Rome,Berlin,B,Capitals,Paris is the capital of France.,,
+What is 2 + 2?,Mathematics,1,mcq,3,4,5,6,B,Arithmetic,Basic addition.,,
+Explain the process of photosynthesis.,Science,3,short_answer,,,,,,Biology,Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water.,"Plants use sunlight to convert CO2 and water into glucose and oxygen.","sunlight, CO2, water, glucose, oxygen"
+Describe the impact of the Industrial Revolution on society.,History,4,essay,,,,,,Industrial Revolution,The Industrial Revolution had profound effects on society, including urbanization, technological advancements, and shifts in economic power.,"The Industrial Revolution led to urbanization, mass production, and significant social changes.","industrialization, urbanization, mass production, technology"
+What is the square root of 64?,Mathematics,2,mcq,6,7,8,9,C,Algebra,8 * 8 = 64.,,
+Which planet is known as the Red Planet?,Science,1,mcq,Earth,Mars,Jupiter,Saturn,B,Astronomy,Mars has a reddish appearance due to iron oxide.,,
+Briefly explain the significance of the Magna Carta.,History,3,short_answer,,,,,,Middle Ages,The Magna Carta established the principle that everyone is subject to the law, even the king.,"An important document that limited the power of the English monarch.","law, monarch, rights, liberty"
+What are the three states of matter?,Science,2,mcq,Solid, Liquid, Gas,Plasma, Bose-Einstein,All of them,None,A,Physics,Standard states of matter.,,
+Explain why it is important to study history.,History,4,essay,,,,,,General,Studying history helps us understand the past and shapes our future.,"History provides context for current events and helps us avoid repeating past mistakes.","past, future, context, mistakes"

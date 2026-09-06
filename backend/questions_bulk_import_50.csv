@@ -1,0 +1,51 @@
+topic_name,question_text,option_a,option_b,option_c,option_d,correct_answer,difficulty_level,explanation
+Computer Vision,What is the primary goal of Computer Vision?,To process audio signals,To enable computers to interpret visual information,To create databases,To design websites,B,1,Computer Vision focuses on replicating human vision to interpret images and videos.
+Computer Vision,Which algorithm is commonly used for face detection?,Viola-Jones,Dijkstra's Algorithm,Quicksort,AES,A,3,The Viola-Jones algorithm is a classic object detection framework used primarily for face detection.
+Computer Vision,What does CNN stand for in the context of deep learning?,Central Neural Network,Cyber Neural Network,Convolutional Neural Network,Computer Nodal Network,C,2,"CNN stands for Convolutional Neural Network, specialized for processing grid-like data such as images."
+Computer Vision,Which technique is used to detect edges in an image?,Gaussian Blur,Canny Edge Detector,Histogram Equalization,Resize,B,3,Canny Edge Detector is a multi-stage algorithm to detect a wide range of edges in images.
+Computer Vision,What is a pixel?,A picture element,A programming language,A type of memory,A network protocol,A,1,A pixel (picture element) is the smallest controllable element of a picture represented on the screen.
+Computer Vision,What is Image Segmentation?,Compressing an image,Partitioning an image into multiple segments,Rotating an image,Converting image to text,B,4,"Image segmentation is the process of partitioning a digital image into multiple image segments, also known as image regions or image objects."
+Computer Vision,Which color model is primarily used for digital screens?,CMYK,RGB,HSV,Grayscale,B,2,"RGB (Red, Green, Blue) is the color model used for sensing, representation, and display of images in electronic systems."
+Computer Vision,What is the purpose of a dataset in computer vision?,To correct code syntax,To train and test machine learning models,To store passwords,To design user interfaces,B,2,Datasets are collections of images used to train and evaluate computer vision models.
+Computer Vision,What is OpenCV?,A video game,A computer vision library,A database management system,A web browser,B,2,OpenCV (Open Source Computer Vision Library) is a library of programming functions mainly aimed at real-time computer vision.
+Computer Vision,What does YOLO stand for in object detection?,You Only Look Once,Year Of Local Objects,Yellow Object Locator Option,Your Object Learning Organization,A,4,YOLO (You Only Look Once) is a popular object detection algorithm known for its speed and accuracy.
+Mathematics,What is the value of Pi (approx)?,3.14,2.14,4.14,1.14,A,1,Pi is approximately equal to 3.14159.
+Mathematics,What is 15% of 200?,20,25,30,35,C,2,15% of 200 is (15/100) * 200 = 30.
+Mathematics,Solve for x: 2x + 5 = 15,5,10,20,0,A,2,"2x = 10, so x = 5."
+Mathematics,What is the derivative of x^2?,x,2x,x^2,2,B,3,"The derivative of x^n is n*x^(n-1), so derivative of x^2 is 2x."
+Mathematics,What is the square root of 144?,10,11,12,13,C,2,12 * 12 = 144.
+Mathematics,What is the sum of angles in a triangle?,90 degrees,180 degrees,360 degrees,270 degrees,B,2,The sum of the interior angles of a triangle is always 180 degrees.
+Mathematics,What is the area of a rectangle with length 5 and width 3?,8,15,16,2,B,1,Area = length * width = 5 * 3 = 15.
+Mathematics,Which number is a prime number?,4,9,11,15,C,2,11 has only two factors: 1 and itself.
+Mathematics,What is the slope of the line y = 3x + 2?,2,3,5,1,B,3,"In the equation y = mx + b, m is the slope. Here m = 3."
+Mathematics,Calculate 5 factorial (5!).,20,60,120,100,C,3,5! = 5 * 4 * 3 * 2 * 1 = 120.
+Python Programming,How do you output text to the console in Python?,print(),console.log(),echo,write(),A,1,print() is the standard function to display output in Python.
+Python Programming,Which keyword is used to define a function?,func,def,function,define,B,1,The 'def' keyword is used to define a function in Python.
+Python Programming,What data type is the result of: 10 / 2 ?,int,float,string,list,B,2,Division in Python 3 always returns a float. 10 / 2 = 5.0
+Python Programming,How do you create a list in Python?,{},[],(),<>,B,1,Square brackets [] are used to create lists in Python.
+Python Programming,Which symbol is used for comments in Python?,//,/*,#,--,C,1,The hash symbol # is used for single-line comments.
+Python Programming,What is the output of: len('hello')?,4,5,6,0,B,1,The length of the string 'hello' is 5.
+Python Programming,Which library is popular for data manipulation?,NumPy,Pandas,Requests,Flask,B,3,Pandas is the most popular library for data manipulation and analysis.
+Python Programming,How do you start a for loop?,for x in y:,loop x in y:,foreach x in y:,for (x; y; z):,A,2,The correct syntax is 'for variable in iterable:'.
+Python Programming,What is the correct file extension for Python files?,.pyt,.pt,.py,.python,C,1,Python source files use the .py extension.
+Python Programming,What is a dictionary in Python?,Ordered list,Key-value pairs,Immutable set,Text file,B,2,Dictionaries store data values in key:value pairs.
+Machine Learning,What is Supervised Learning?,Learning without labeled data,Learning with labeled data,Learning from environment interaction,Hardcoding rules,B,3,Supervised learning uses labeled training data to infer a function.
+Machine Learning,Which is a classification algorithm?,Linear Regression,Logistic Regression,K-Means,PCA,B,4,"Despite its name, Logistic Regression is used for binary classification."
+Machine Learning,What is overfitting?,Model performs well on training but poor on test data,Model performs poor on both,Model is too simple,Model is trained too fast,A,3,Overfitting happens when a model learns the noise in the training data rather than the signal.
+Machine Learning,What is a common metric for regression?,Accuracy,F1 Score,Mean Squared Error,Precision,C,3,Mean Squared Error (MSE) is a standard metric for regression problems.
+Machine Learning,What does 'k' stand for in k-NN?,Kernel,Knowledge,Number of neighbors,Constant,C,2,"In k-Nearest Neighbors, 'k' is the number of nearest neighbors to consider."
+Machine Learning,Which library is used for deep learning?,Scikit-learn,TensorFlow,Matplotlib,Seaborn,B,3,TensorFlow is a core open-source library for help in developing and training ML models.
+Machine Learning,What is a feature in ML?,A bug,An input variable,An output variable,The software version,B,2,A feature is an individual measurable property or characteristic of a phenomenon being observed.
+Machine Learning,What involves splitting data into K folds?,Cross-validation,Normalization,Regularization,Clustering,A,4,K-Fold Cross-Validation splits data into k subsets to evaluate model performance.
+Machine Learning,Unsupervised learning is used for?,Classification,Clustering,Regression,Forecasting,B,3,Clustering (like K-Means) is a primary application of unsupervised learning.
+Machine Learning,What is a confusion matrix?,A table to describe classification performance,A matrix of random numbers,A math puzzle,A network layer,A,3,A confusion matrix summarizes valid and incorrect predictions for a classification problem.
+Data Science,What involves cleaning and organizing raw data?,Data Mining,Data Wrangling,Data Visualization,Data Hiding,B,3,Data Wrangling is the process of cleaning and unifying messy and complex data sets.
+Data Science,Which plot works best for distribution of a single variable?,Scatter plot,Histogram,Pie chart,Line chart,B,2,Histograms are used to visualize the distribution of numerical data.
+Data Science,What does SQL stand for?,Straight Query Language,Structured Query Language,Simple Query List,Standard Question Log,B,2,"SQL stands for Structured Query Language, used for managing relational databases."
+Data Science,Which is a measure of central tendency?,Standard Deviation,Variance,Mean,Range,C,2,"Mean, Median, and Mode are measures of central tendency."
+Data Science,What is Big Data?,Data larger than 1GB,Data that cannot be processed by traditional methods,Any database,Cloud storage,B,3,Big Data refers to datasets so large or complex that traditional data processing software is inadequate.
+Data Science,What is a null value?,Zero,Missing or undefined value,Negative one,Space character,B,1,A null value indicates a lack of a value or missing data.
+Data Science,Which join returns all records from both tables?,Inner Join,Left Join,Right Join,Full Outer Join,D,4,Full Outer Join returns all records when there is a match in either left or right table.
+Data Science,What is A/B testing?,Testing two versions of a webpage,Testing blood types,Testing alphabet knowledge,Testing hardware,A,3,A/B testing compares two versions of a variable to determine which performs better.
+Data Science,Correlation does not imply...,Association,Relationship,Causation,Connection,C,2,A famous phrase: 'Correlation does not imply causation'.
+Data Science,What is an outlier?,An average values,A value far from others,A missing value,A text string,B,2,An outlier is a data point that differs significantly from other observations.

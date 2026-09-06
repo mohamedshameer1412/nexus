@@ -1,0 +1,11 @@
+question_text,option_a,option_b,option_c,option_d,correct_answer,topic_name,difficulty_level,explanation
+What is 5 + 3?,6,7,8,9,C,Mathematics,1,Basic addition: 5 + 3 = 8
+What is 12 - 4?,6,7,8,9,C,Mathematics,1,Basic subtraction: 12 - 4 = 8
+What is 3 × 4?,10,11,12,13,C,Mathematics,2,Basic multiplication: 3 × 4 = 12
+What is 20 ÷ 4?,3,4,5,6,C,Mathematics,2,Basic division: 20 ÷ 4 = 5
+What is the square root of 16?,2,3,4,5,C,Mathematics,3,Square root of 16 is 4
+Solve: 2x + 5 = 15,3,4,5,6,C,Mathematics,3,2x = 10 so x = 5
+What is 15% of 200?,25,30,35,40,B,Mathematics,3,15% of 200 = 0.15 × 200 = 30
+Solve: x² - 5x + 6 = 0,x=2 or 3,x=1 or 6,x=2 or 4,x=3 or 4,A,Mathematics,4,Factoring: (x-2)(x-3) = 0
+What is the derivative of x²?,x,2x,x²,2,B,Mathematics,4,Power rule: d/dx(x²) = 2x
+Integrate: ∫2x dx,x,x²,2x²,x² + C,D,Mathematics,5,Integration: ∫2x dx = x² + C

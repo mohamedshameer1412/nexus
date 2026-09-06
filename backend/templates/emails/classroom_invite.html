@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Invitation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .welcome-text {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 0 auto 30px;
+            text-align: center;
+        }
+
+        .class-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .instructor {
+            font-size: 14px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .instructor-name {
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: #2563eb;
+            color: white !important;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+            margin-bottom: 24px;
+        }
+
+        .cta-button:hover {
+            background-color: #1d4ed8;
+        }
+
+        .access-code {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 16px;
+        }
+
+        .code-box {
+            font-family: monospace;
+            background-color: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 1px;
+        }
+
+        .footer {
+            background-color: #f8fafc;
+            padding: 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer a {
+            color: #64748b;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Adaptive AI Learning</h1>
+        </div>
+
+        <div class="content">
+            <div class="welcome-text">
+                <p>Hello,</p>
+                <p>You have been invited to join a new learning experience.</p>
+            </div>
+
+            <div class="card">
+                <div class="instructor">Instructor</div>
+                <div class="instructor-name">{{ teacher_name }}</div>
+                <div style="margin: 16px 0; border-top: 1px solid #e2e8f0;"></div>
+                <div class="instructor">Classroom</div>
+                <div class="class-name">{{ classroom_name }}</div>
+            </div>
+
+            <a href="{{ invite_url }}" class="cta-button">Join Classroom Now</a>
+
+            {% if show_access_code %}
+            <div class="access-code">
+                Or join manually using access code: <span class="code-box">{{ access_code }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="footer">
+            <p>This invitation was sent to you via the Adaptive AI Learning Platform.</p>
+            <p>&copy; {% now "Y" %} Adaptive AI. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>
