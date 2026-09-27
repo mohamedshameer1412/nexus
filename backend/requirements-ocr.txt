@@ -1,0 +1,5 @@
+# Optional: OCR for scanned PDFs and photos of notes. Without it Nexus still works; scanned pages are reported as unreadable.
+# EasyOCR pulls in PyTorch (CPU build is fine). First use downloads its detection/recognition models (~100 MB) once.
+easyocr>=1.7
+# Alternative (lighter, needs the tesseract binary: apt install tesseract-ocr / choco install tesseract):
+# pytesseract>=0.3.10

@@ -1,58 +1,35 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Databases, uploads and generated data
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+backend/data/*
+!backend/data/sample-materials/
+uploads/
+media/
+
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.env
-.venv
+*.pyc
+.pytest_cache/
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+npm-debug.log*
 
-# Node
-logs
-*.lognpm-debug.log*
-yarn-debug.log* yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules/
-dist/
-dist-ssr/
-*.local
-
-# Next.js
-.next/
-out/
-
-# IDEs
+# Editors and OS
+.DS_Store
 .idea/
 .vscode/
-*.swp
-*.swo
-*.
-.DS_Store

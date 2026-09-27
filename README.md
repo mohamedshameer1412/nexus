@@ -1,91 +1,98 @@
-﻿# NEXUS — Agentic Learner Intelligence OS
-### Team Deadlock | AGENTATHON 2026 | SIH 2026 PS 26101
+# Nexus StudyHub
 
----
+Nexus helps a student study from their own material. Upload notes, slides or a scanned handout, then ask questions, practise, take quizzes and follow a plan. Every answer is taken only from what was uploaded and shows the passage it came from. When the material does not cover a question, Nexus says so instead of guessing.
 
-## What NEXUS Is
+The project combines the StudyHub engine and agents from the deadlock codebase with the Nexus product flow and brand.
 
-NEXUS is a closed-loop, multi-agent learning intelligence system. It builds a persistent
-Learner Digital Twin for every student and runs six autonomous agents after every session
-to update it, diagnose errors, predict future risks, plan the next session, and connect
-learning to career requirements.
+## What is in here
 
-Core loop: Observe -> Diagnose -> Predict -> Decide -> Intervene -> Verify -> Remember -> Replan
+```
+backend/    FastAPI + SQLite. Ingest, retrieval, answers, quizzes, IRT scoring, agents, analytics, reports
+frontend/   Next.js 15 App Router, Tailwind, Radix UI, Recharts, TanStack Table, framer-motion
+docs/       Nexus product documents
+legacy/     The earlier Nexus Django backend, kept for reference only (not used at runtime)
+```
 
----
+### Backend highlights
 
-## Project Structure
+- Ingest PDF, Word (.docx), plain text and photos of notes. Scanned PDF pages and images are read with EasyOCR, with Tesseract as a fallback.
+- Hybrid retrieval: SQLite FTS5 (BM25) plus fastembed vectors in sqlite-vec, merged with reciprocal-rank fusion. If the embedding model cannot be loaded, search falls back to keywords and the System card says so.
+- Answers from a local Ollama model first, then an allowlisted OpenRouter model within a spend cap. Each claim must quote the material or it is dropped.
+- Quizzes with count, difficulty, adaptive selection and a scored mode with proctoring. Ability is estimated per topic with a 3-parameter IRT model and a Normal(0, 1.2) prior.
+- Six agents run after each quiz: Evaluator (traces misses back through the prerequisite graph to the root cause), Analytics, Predictor, Planner, Tutor and Mentor. Each run is stored and shown step by step.
+- Smart notes per topic, extracted word for word from the material with page references.
+- Analytics tables with CSV, Excel and PDF export, and branded ReportLab PDF reports for a subject, a quiz attempt and the whole account.
 
-nexus/
-  backend/
-    nexus_core/         Learner Digital Twin models
-    tutor_agent/        Tutor Agent (content delivery)
-    planner_agent/      Planner Agent (study plan + What-If Simulator)
-    evaluator_agent/    Evaluator Agent (root-cause diagnosis)
-    analytics/          Analytics Agent (Twin updates)
-    ml_engine/          IRT (1PL Rasch), FAISS, Random Forest
-    ml_models/          Trained model files
-    syllabus/           PDF parser, prerequisite graph (NetworkX)
-    learning/           Session management
-    proctoring/         Assessment integrity controls
-    lib/                Shared utilities
-    manage.py
-    requirements.txt
-    Dockerfile
-    docker-compose.yml
+### Frontend flow
 
-  frontend_src/         Next.js 15 (App Router)
-    app/                Pages and layouts
-    components/         UI components
-    hooks/              Custom React hooks
-    utils/              API helpers
+`/login` or `/register` → `/dashboard` → `/subjects` → a subject workspace with tabs for Materials, Ask, Practice, Quiz, Progress, Roadmap, Outlook, Notes, Learner twin, Agents and Report. Account-wide pages: `/analytics`, `/career`, `/search`, `/saved`, `/account`. `Ctrl K` opens the command palette.
 
-  docs/
-    NEXUS_PROJECT_FLOW.md   Full project flow (AGENTATHON)
-    NEXUS_SIH_26101.md      SIH PS 26101 integration (MoSPI)
+## Running it
 
----
+You need Python 3.11+ and Node 20+.
 
-## Tech Stack
+### 1. Backend
 
-Backend:    Python 3.11, Django 4.2 LTS, Django REST Framework
-Agents:     Celery 5, Redis 7, Django Channels (WebSocket)
-ML (local): Sentence-BERT, FAISS, NetworkX, scikit-learn (IRT + RF)
-Frontend:   Next.js 15 (App Router), Chart.js, WebSocket API
-Database:   PostgreSQL 15
-Infra:      Docker, Docker Compose, Nginx, Gunicorn + Daphne
+```bash
+cd backend
+pip install -r requirements.txt
+pip install -r requirements-ocr.txt      # optional: EasyOCR for scanned PDFs and photos
+cp .env.example .env                     # optional: add your own keys, never commit this file
+python -m uvicorn studyhub.web.app:app --port 8100
+```
 
-Zero external API dependency. All ML runs locally (CPU-only).
+The first time semantic search runs, fastembed downloads the `BAAI/bge-small-en-v1.5` model (about 70 MB). Without network access the app keeps working on keyword search.
 
----
+### 2. Demo data (optional)
 
-## Quick Start
+With the backend running:
 
-  Backend:
-    cd backend
-    pip install -r requirements.txt
-    python manage.py migrate
-    celery -A config worker --loglevel=info
-    python manage.py runserver
+```bash
+cd backend
+python scripts/seed_demo.py
+```
 
-  Frontend:
-    cd frontend_src
-    npm install
-    npm run dev
+This creates the account `demo@nexus.local` with password `nexus-demo-2026`, two subjects, practice questions, three weeks of quiz history, notes and a career goal.
 
----
+### 3. Frontend
 
-## Key Innovations
+```bash
+cd frontend
+npm install
+npm run dev            # http://localhost:3000
+```
 
-1. Learner Digital Twin (mastery, ability, velocity, CAG, debt, verified skills)
-2. Confidence-Ability Gap — quantified per concept, continuously tracked
-3. Learning Debt with Propagation Factor — technical debt applied to learning
-4. Root-cause diagnosis via prerequisite graph traversal (NetworkX DAG)
-5. What-If Learning Simulator — decision simulation for study planning
-6. Real-time 6-agent parallel pipeline (real Celery events via WebSocket)
-7. Verified skills through evidence (not self-declaration)
+The frontend proxies `/api` to `API_ORIGIN` (default `http://127.0.0.1:8100`). For production use `npm run build && npm start`.
 
----
+## Configuration
 
-Separated from ai_learnmate — 2026-09-06
-Team Deadlock
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `STUDYHUB_DB` | `data/studyhub.db` | SQLite database path |
+| `STUDYHUB_UPLOADS` | `data/uploads` | Where uploaded files are kept |
+| `STUDYHUB_LOCAL_MODEL` | unset | Ollama model to try first |
+| `OPENROUTER_API_KEY` | unset | Cloud fallback, used only after the student opts in |
+| `STUDYHUB_SEMANTIC` | `auto` | `off` for keyword search only |
+| `STUDYHUB_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | fastembed model name |
+| `STUDYHUB_OCR` | `auto` | `easyocr`, `tesseract` or `off` |
+| `STUDYHUB_OCR_LANGS` | `en` | EasyOCR languages, comma separated |
+| `STUDYHUB_OCR_GPU` | `0` | `1` to let EasyOCR use a GPU |
+| `STUDYHUB_OCR_MAX_PAGES` | `40` | Most scanned pages read per PDF |
+| `API_ORIGIN` | `http://127.0.0.1:8100` | Backend address used by the frontend proxy |
+
+## Tests
+
+```bash
+cd backend
+python -m pytest -q --deselect tests/test_integration.py
+cd ../frontend
+npx eslint . && npx next build
+```
+
+`tests/test_integration.py` calls live models and is skipped by default.
+
+## Security notes
+
+- Sessions use HTTP-only cookies and every change needs the `X-CSRF-Token` header.
+- Ownership is checked in SQL. Asking for something that belongs to another account returns 404, never 403.
+- Keep `.env`, databases and uploads out of version control. The `.gitignore` covers them.

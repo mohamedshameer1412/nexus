@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "checkJs": true,
+    "jsx": "preserve",
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "include": [
+    "app",
+    "components",
+    "lib",
+    "middleware.js"
+  ]
+}

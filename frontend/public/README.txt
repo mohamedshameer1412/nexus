@@ -1,0 +1,1 @@
+NEXUS UI ASSETS\n\nGenerated asset pack for NEXUS. Includes reusable branding, government building, AI tutor, learning, competency, icon, background, badge and navigation assets, plus the original generated asset sheet.\n\nNote: major visual assets are crops from the generated asset board; exact transparent SVG/PNG redraws can be created separately if required.

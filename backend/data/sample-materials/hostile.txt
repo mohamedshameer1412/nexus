@@ -1,0 +1,3 @@
+# <script>alert(1)</script>
+
+A paragraph with <img src=x onerror=alert(2)> and words about hashing.

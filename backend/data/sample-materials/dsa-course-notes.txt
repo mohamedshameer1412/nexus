@@ -1,0 +1,67 @@
+# Data Structures and Algorithms: Course Notes
+
+## Arrays
+
+An array stores elements of the same type in one contiguous block of memory. Because every element has the same size, the address of element i is the base address plus i times the element size, so reading or writing any element by its index takes constant time, O(1).
+
+Inserting or deleting in the middle of an array is expensive. Every element after the position must shift by one place, so these operations take linear time, O(n). A dynamic array such as a Python list grows by allocating a larger block, usually double the size, and copying the old elements across. Because doubling happens rarely, appending to a dynamic array costs O(1) amortised time.
+
+## Linked Lists
+
+A linked list is a sequence of nodes where each node holds a value and a reference to the next node. The list is reached through a head pointer, and the last node points to nothing.
+
+Inserting or removing a node after a known node takes constant time, because only the references change and no elements move. Finding the element at position i, however, means walking from the head one node at a time, which takes linear time, O(n). A doubly linked list also stores a reference to the previous node, so it can be traversed in both directions at the cost of extra memory per node.
+
+## Stacks
+
+A stack is a last-in first-out (LIFO) collection. The push operation adds an element to the top of the stack and the pop operation removes and returns the element from the top. Peek returns the top element without removing it. All three operations take constant time.
+
+Stacks are used to implement function calls: each call pushes a frame holding its local variables and return address, and returning pops that frame. Stacks also power undo features, the evaluation of postfix expressions, and checking whether brackets in an expression are balanced.
+
+## Queues
+
+A queue is a first-in first-out (FIFO) collection. The enqueue operation adds an element at the rear and the dequeue operation removes the element at the front. A circular buffer implements a queue in a fixed array by letting the front and rear indices wrap around to the start.
+
+Queues are used for scheduling tasks, buffering data between a producer and a consumer, and for breadth-first search, where the vertices waiting to be visited are kept in the order they were discovered.
+
+## Recursion
+
+A recursive function solves a problem by calling itself on a smaller instance of the same problem. Every recursive function needs a base case that is answered directly without a further call; without it the calls never stop and the program runs out of stack space.
+
+Each recursive call is placed on the call stack, so the depth of recursion determines the memory used. The factorial of n can be defined as n times the factorial of n minus 1, with the factorial of 0 equal to 1 as the base case. Recursion that repeats the same subproblems, such as the naive Fibonacci function, can be made efficient with memoisation, which stores results that were already computed.
+
+## Trees
+
+A tree is a hierarchical structure of nodes connected by edges, with a single root node at the top. A node with no children is called a leaf, and the height of a tree is the number of edges on the longest path from the root to a leaf.
+
+A binary tree is a tree in which every node has at most two children, called the left child and the right child. Tree algorithms are naturally recursive because every subtree is itself a tree. Inorder traversal visits the left subtree, then the node, then the right subtree. Preorder traversal visits the node before its subtrees, and postorder traversal visits the node after its subtrees.
+
+## Binary Search Trees
+
+A binary search tree keeps every key in the left subtree smaller than the node's key and every key in the right subtree larger. Because of this ordering, an inorder traversal of a binary search tree visits the keys in sorted order.
+
+Searching, inserting and deleting take time proportional to the height of the tree. In a balanced tree the height is about log n, so these operations take O(log n) time, but inserting keys in sorted order produces a degenerate tree that behaves like a linked list with O(n) operations. Self-balancing trees such as AVL trees and red-black trees perform rotations after updates to keep the height logarithmic.
+
+## Heaps
+
+A binary heap is a complete binary tree that satisfies the heap property: in a min-heap every parent is smaller than or equal to its children, so the smallest element is always at the root. A heap is usually stored in an array, where the children of the element at index i are at indices 2i plus 1 and 2i plus 2.
+
+Inserting an element places it at the end and sifts it up, and removing the minimum moves the last element to the root and sifts it down; both take O(log n) time. Heaps implement priority queues, and heapsort uses a heap to sort n elements in O(n log n) time.
+
+## Hash Tables
+
+A hash table maps keys to values by applying a hash function that turns each key into an index of an underlying array. With a good hash function and a low load factor, insertion, deletion and lookup take O(1) time on average.
+
+Two different keys can hash to the same index, which is called a collision. Separate chaining stores all colliding entries in a list at that index, while open addressing probes for another free slot in the array. When the load factor grows too high, the table is resized and every key is rehashed into the larger array.
+
+## Graphs
+
+A graph is a set of vertices connected by edges, which may be directed or undirected and may carry weights. An adjacency list stores, for each vertex, the list of its neighbours and uses memory proportional to the number of vertices plus edges; an adjacency matrix uses memory proportional to the square of the number of vertices.
+
+Breadth-first search explores a graph level by level using a queue and finds the shortest path in an unweighted graph. Depth-first search follows one path as far as possible before backtracking, and is usually implemented with recursion or an explicit stack. Dijkstra's algorithm finds shortest paths in a graph with non-negative edge weights by repeatedly taking the closest unvisited vertex from a priority queue.
+
+## Sorting
+
+Merge sort divides the array into two halves, sorts each half recursively, and merges the two sorted halves; it always takes O(n log n) time and is stable, but needs O(n) extra memory. Quicksort chooses a pivot, partitions the array into elements smaller and larger than the pivot, and sorts the two parts recursively; it takes O(n log n) time on average but O(n squared) in the worst case when the pivots are chosen badly.
+
+Insertion sort builds the sorted array one element at a time and is efficient for small or nearly sorted inputs. A sorting algorithm is stable when elements with equal keys keep their original relative order.

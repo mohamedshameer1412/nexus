@@ -1,0 +1,16 @@
+# Data Structures
+
+## Stacks
+
+A stack is a last-in first-out collection. The push operation adds an element to the top of the stack and the pop
+operation removes the element from the top. Stacks are used to implement function calls and undo features.
+
+## Queues
+
+A queue is a first-in first-out collection. The enqueue operation adds an element at the rear and the dequeue
+operation removes the element at the front. Queues are used for scheduling tasks and for breadth-first search.
+
+## Trees
+
+A binary tree is a hierarchical structure in which every node has at most two children, called the left child and
+the right child. Inorder traversal visits the left subtree, then the node, then the right subtree.
