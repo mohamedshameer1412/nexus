@@ -100,7 +100,7 @@ function NavLinks({ compact = false, onNavigate = undefined }) {
     <nav aria-label="Main" className="flex min-h-full flex-col px-3 py-5">
       {/* Logo / brand in mobile drawer */}
       <div className="mb-5 flex items-center gap-2.5 px-1">
-        <img src="/mospi-logo.png" alt="MoSPI" className="h-7 w-7 object-contain" />
+        <Logo className="text-[#0B2A5B]" />
         {!compact && (
           <div>
             <p className="text-[15px] font-black text-white tracking-tight">NEXUS</p>
@@ -208,7 +208,7 @@ export function AppShell({ children }) {
 
             {/* Brand */}
             <Link href="/dashboard" aria-label="NEXUS Dashboard" className="flex items-center gap-2 no-underline">
-              <img src="/mospi-logo.png" alt="MoSPI" className="h-7 w-7 object-contain hidden lg:block" />
+              <Logo className="h-7 w-7 text-[#0B2A5B] hidden lg:block" />
               <span className="text-[17px] font-black tracking-tight text-white">NEXUS</span>
             </Link>
 

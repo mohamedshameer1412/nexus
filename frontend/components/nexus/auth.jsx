@@ -106,8 +106,8 @@ function Showcase() {
         className="pointer-events-none absolute bottom-0 right-0 top-0 w-[58%]"
       >
         <img
-          src="/government-building.png"
-          alt="Indian government building"
+          src="/fort.png"
+          alt="Fort Scene"
           className="h-full w-full object-cover object-left-top"
           style={{
             maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 15%, black 30%)",
@@ -123,7 +123,6 @@ function Showcase() {
         <div className="flex items-start justify-between">
           <div className="flex flex-col items-start gap-1">
             <div className="flex items-center gap-2">
-              <img src="/mospi-logo.png" alt="MoSPI" className="h-9 w-9 object-contain" />
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#0B2A5B]">Government of India</p>
                 <p className="text-[11px] font-semibold text-[#5A6E8C] tracking-wide">MoSPI</p>
@@ -205,13 +204,11 @@ export function AuthShell({ children }) {
         <div className="w-full max-w-[400px]">
           {/* Mobile-only branding */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <img src="/mospi-logo.png" alt="MoSPI" className="h-8 w-8 object-contain" />
             <Logo className="text-[#0B2A5B]" />
           </div>
           {/* Govt stripe - desktop top of form */}
           <div className="mb-6 hidden lg:block">
             <div className="flex items-center gap-2 mb-4">
-              <img src="/mospi-logo.png" alt="MoSPI" className="h-8 w-8 object-contain" />
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-[#0B2A5B]">Government of India · MoSPI</p>
               </div>
