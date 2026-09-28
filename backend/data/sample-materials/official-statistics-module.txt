@@ -1,0 +1,27 @@
+Fundamentals of Official Statistics - Module Notes (demo training material)
+
+1. Sampling in large-scale surveys
+
+A census collects information from every unit of the population. A sample survey collects information from a selected part of the population and uses it to estimate values for the whole population. Sample surveys cost less and can be completed faster than a census, which is why most household surveys are sample surveys.
+
+In simple random sampling, every unit in the population has an equal chance of being selected. In stratified sampling, the population is first divided into groups called strata, such as rural and urban areas, and a sample is drawn from each stratum. Stratification improves precision when units within a stratum are similar to each other.
+
+Sampling error is the difference between an estimate from a sample and the true population value that arises only because a sample was observed instead of the whole population. Sampling error can be reduced by increasing the sample size. Non-sampling errors, such as incorrect answers, coverage gaps or data entry mistakes, can occur in both censuses and sample surveys.
+
+2. Index numbers and price statistics
+
+An index number measures the relative change in a variable, such as prices, between a base period and a current period. The base period is given the value 100.
+
+A consumer price index measures the change in the prices of a fixed basket of goods and services bought by households. A Laspeyres price index uses quantities from the base period as weights. Because the weights stay fixed, a Laspeyres index does not reflect households switching to cheaper goods when prices rise.
+
+Inflation measured by a price index is the percentage change in the index between two periods. If an index rises from 150 to 156, inflation over that period is 4 percent.
+
+3. Correlation and regression
+
+Correlation measures the strength and direction of a linear relationship between two variables. The correlation coefficient ranges from -1 to +1. A value close to 0 means there is little or no linear relationship. Correlation does not show that one variable causes the other.
+
+Regression models the relationship between a dependent variable and one or more independent variables. A simple linear regression has the form Y = a + bX, where b is the slope: the average change in Y for a one-unit change in X. Regression can be used to predict values of the dependent variable.
+
+4. Data quality in official statistics
+
+The quality of official statistics is judged on several dimensions. Accuracy is how close estimates are to the true values. Timeliness is the time between the reference period and the release of the statistics. Consistency means that related statistics agree with each other over time and across sources. Accessibility means users can find and use the statistics easily. Metadata, which describes how the data were collected and processed, helps users interpret statistics correctly.

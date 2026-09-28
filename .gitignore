@@ -23,9 +23,9 @@ __pycache__/
 venv/
 
 # Node / Next.js
-frontend/node_modules/
-frontend/.next/
-frontend/out/
+frontend_src/node_modules/
+frontend_src/.next/
+frontend_src/out/
 *.tsbuildinfo
 npm-debug.log*
 
@@ -33,3 +33,12 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Local credential notes (never commit)
+backend/DB_NAME=nexus.txt
+
+# Large design files and videos
+demo-video/
+NEXUS_All_Screens_Desktop_Mobile/
+NEXUS_UI_Assets/
+NEXUS_All_Screens_Desktop_Mobile.zip

@@ -1,16 +1,11 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
+import { FlatCompat } from "@eslint/eslintrc";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
-export default eslintConfig;
+const config = [
+  { ignores: [".next/**", "node_modules/**", "public/mediapipe/**", "public/sw.js"] },
+  ...compat.extends("next/core-web-vitals"),
+  { rules: { "react/no-unescaped-entities": "off", "@next/next/no-img-element": "off" } },
+];
+
+export default config;
