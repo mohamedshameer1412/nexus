@@ -10,10 +10,12 @@ import { cn, friendlyError } from "@/lib/utils";
 import { useTitle } from "@/lib/use-title";
 import { useFaceWatch } from "@/lib/use-face-watch";
 import { ErrorState } from "@/components/nexus/common";
-import { Alert, Badge, Button, Card, Kbd, Progress, Skeleton } from "@/components/ui/primitives";
+import { Alert, Badge, Button, Card, Kbd, Progress, Segmented, Skeleton } from "@/components/ui/primitives";
 
 const NO_COUNTS = { tab_switch: 0, full_screen_exit: 0, copy_attempt: 0, paste_attempt: 0 };
 const LABELS = { tab_switch: "left the page", full_screen_exit: "left full screen", copy_attempt: "copy attempts", paste_attempt: "paste attempts" };
+// The officer's own rating of each answer: a confident wrong answer points to a misconception, not a gap in recall.
+const CONFIDENCE = [{ value: "1", label: "Guessing" }, { value: "2", label: "Unsure" }, { value: "3", label: "Sure" }];
 
 /**
  * Assessment mode only (the student chose it and accepted the notice).
@@ -93,12 +95,13 @@ function useAssessment(id, aid, on, finished, onViolation) {
 function Mcq({ id, aid, st, refresh }) {
   const [chosen, setChosen] = useState(null);
   const [problem, setProblem] = useState("");
+  const [sure, setSure] = useState("");
   const t0 = useRef(Date.now());
   const changes = useRef(0);
   const it = st.item;
   const submit = useMutation({
     mutationFn: () => api(`/subjects/${id}/quiz/attempts/${aid}/answer`, {
-      method: "POST", json: { answer_row_id: it.answer_row_id, item_id: it.item_id, chosen, response_time: (Date.now() - t0.current) / 1000, hesitations: changes.current },
+      method: "POST", json: { answer_row_id: it.answer_row_id, item_id: it.item_id, chosen, response_time: (Date.now() - t0.current) / 1000, hesitations: changes.current, confidence: sure ? Number(sure) : null },
     }),
     onSuccess: (r) => {
       if (r?.backtrack) toast.info(`Stepping back to the basics: ${r.backtrack.to.join(", ")}`, { id: "backtrack" });
@@ -142,6 +145,10 @@ function Mcq({ id, aid, st, refresh }) {
             ))}
           </div>
         </fieldset>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <span id="sure-label" className="text-[13px] font-semibold text-muted">How sure are you?</span>
+          <Segmented label="How sure are you?" value={sure} onValueChange={setSure} options={CONFIDENCE} />
+        </div>
         {problem && <Alert tone="danger" className="mt-4">{problem}</Alert>}
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <p className="hidden text-[12.5px] text-muted sm:block">Keys <Kbd>A</Kbd>–<Kbd>D</Kbd> choose, <Kbd>Enter</Kbd> confirms</p>

@@ -1,19 +1,19 @@
 "use client";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bot, CheckCircle2, CornerDownLeft, Download, RotateCcw, XCircle } from "lucide-react";
+import { Bot, CheckCircle2, CornerDownLeft, Download, Flag, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { getAgents, getResult, keys } from "@/lib/queries";
 import { TONE_HEX } from "@/lib/format";
-import { cn, plural } from "@/lib/utils";
+import { cn, friendlyError, plural } from "@/lib/utils";
 import { useTitle } from "@/lib/use-title";
 import { AgentPipeline, RootCauseChains } from "@/components/nexus/agents";
 import { Bars, Gauge } from "@/components/nexus/charts";
 import { ErrorState, SectionTitle } from "@/components/nexus/common";
-import { Alert, Badge, Button, Card, CardBody, CardHeader, Segmented, Skeleton } from "@/components/ui/primitives";
+import { Alert, Badge, Button, Card, CardBody, CardHeader, Dialog, DialogContent, DialogTrigger, Field, Segmented, Skeleton, Textarea } from "@/components/ui/primitives";
 
 const LEVEL = { new: "New learner", intermediate: "Intermediate", professional: "Professional" };
 const pc = (x) => Math.round(x * 100);
@@ -43,6 +43,78 @@ function DiagnosisCard({ d, subjectId }) {
         <Button asChild size="sm" variant="secondary"><Link href={`/subjects/${subjectId}/progress`}>Confidence by topic</Link></Button>
       </div>
     </Card>
+  );
+}
+
+const SURE = { 1: "guessing", 2: "unsure", 3: "sure" };
+const CONTEST_TONE = { open: "mid", upheld: "strong", rejected: "neutral" };
+
+/** Gap closed? BKT mastery per topic before and after this quiz; when a gap stays open, the next root gap to work on. */
+function GapCard({ gap, subjectId, retest }) {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const start = useMutation({
+    mutationFn: () => api(`/subjects/${subjectId}/quiz/attempts`, { method: "POST", json: { unseen_only: true, count: 5 } }),
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: keys.quiz(subjectId) }); router.push(`/subjects/${subjectId}/quiz/${r.id}`); },
+    onError: (e) => toast.error(friendlyError(e)),
+  });
+  if (!gap?.topics?.length) return null;
+  return (
+    <Card className={cn("border-l-4 p-5", gap.closed ? "border-l-strong" : "border-l-mid")}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 font-display text-lg font-semibold"><ShieldCheck className="h-5 w-5 text-brand" aria-hidden="true" />
+            {gap.closed ? "Gap closed" : "Gap still open"}{retest && <Badge tone="brand">Verified re-test</Badge>}</h2>
+          <p className="mt-1 text-sm text-muted">Mastery is Bayesian Knowledge Tracing: the chance each skill is known, updated answer by answer. A gap counts as closed at {pc(gap.mastered_at)}%.</p>
+        </div>
+        <Button size="sm" onClick={() => start.mutate()} loading={start.isPending}>Re-test on unseen questions</Button>
+      </div>
+      <ul className="mt-4 space-y-2.5">
+        {gap.topics.map((t) => (
+          <li key={t.topic_id} className="rounded-lg bg-surface-2 px-3 py-2.5 text-sm">
+            <p className="flex flex-wrap items-center gap-2"><b>{t.topic}</b>
+              <span className="tabular text-muted">{t.before == null ? "new" : `${pc(t.before)}%`} → <b className={t.closed ? "text-strong" : "text-weak"}>{pc(t.after)}%</b></span>
+              <Badge tone={t.closed ? "strong" : "weak"}>{t.closed ? "closed" : "open"}</Badge></p>
+            {t.next_gap && <p className="mt-1 text-muted">Next root gap: <b className="text-foreground">{t.next_gap.topic}</b>{t.next_gap.chain.length > 1 && <> ({t.next_gap.chain.join(" → ")})</>}</p>}
+          </li>
+        ))}
+      </ul>
+      {gap.confidently_wrong > 0 && <p className="mt-3 text-sm"><b className="text-weak">{plural(gap.confidently_wrong, "answer")}</b> marked “sure” {gap.confidently_wrong === 1 ? "was" : "were"} wrong: a misconception to unlearn, not just a gap to fill.</p>}
+    </Card>
+  );
+}
+
+/** An officer disputes one answer marked wrong; a faculty member upholds or rejects it. */
+function Contest({ subjectId, attemptId, answer }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const send = useMutation({
+    mutationFn: () => api(`/subjects/${subjectId}/quiz/attempts/${attemptId}/answers/${answer.answer_id}/contest`, { method: "POST", json: { reason } }),
+    onSuccess: () => { setOpen(false); toast.success("Sent to faculty. You will see their decision here."); qc.invalidateQueries({ queryKey: keys.result(subjectId, attemptId) }); },
+    onError: (e) => toast.error(friendlyError(e)),
+  });
+  if (answer.contest) {
+    const c = answer.contest;
+    return (
+      <p className="mt-2 flex flex-wrap items-center gap-2 text-sm"><Badge tone={CONTEST_TONE[c.status]}>Contest {c.status}</Badge>
+        {c.resolution && <span className="text-muted">Faculty: {c.resolution}</span>}</p>
+    );
+  }
+  if (answer.correct || answer.answer_id == null) return null;
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button variant="ghost" size="sm" className="mt-1 -ml-2"><Flag className="h-4 w-4" />Contest this mark</Button></DialogTrigger>
+      <DialogContent title="Contest this mark" description="A faculty member reviews the question and either re-marks your answer correct or explains why it stands.">
+        <form onSubmit={(e) => { e.preventDefault(); send.mutate(); }} className="space-y-4">
+          <p className="break-anywhere rounded-lg bg-surface-2 px-3 py-2 text-sm">{answer.question}</p>
+          <Field label="Why is the marking wrong?" htmlFor="contest-reason" hint="For example: the key is wrong, or two options are correct according to the notes.">
+            <Textarea id="contest-reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={4} maxLength={1000} required minLength={10} />
+          </Field>
+          <Button type="submit" loading={send.isPending} disabled={reason.trim().length < 10}>Send to faculty</Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -81,6 +153,7 @@ export default function ResultPage() {
       </div>
       {data.ended_reason && <Alert tone="warning" title="This assessment ended early">{data.ended_reason}. Questions you had not answered were not counted.</Alert>}
       {data.diagnosis && <DiagnosisCard d={data.diagnosis} subjectId={id} />}
+      <GapCard gap={data.gap} subjectId={id} retest={a.verified_retest} />
 
       <div className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <Card className="flex flex-col items-center justify-center p-5">
@@ -127,7 +200,9 @@ export default function ResultPage() {
                     <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">{x.topic?.split(" › ").pop()}{x.backtrack && <Badge tone="neutral"><CornerDownLeft className="h-3 w-3" />step back to basics</Badge>}</p>
                     <p className={cn("break-anywhere mt-2 text-sm", x.correct ? "text-strong" : "text-weak")}>You chose <b>{String.fromCharCode(65 + x.chosen_index)}</b>: {x.options[x.chosen_index]}</p>
                     {!x.correct && <p className="break-anywhere mt-1 text-sm">Right answer <b>{String.fromCharCode(65 + x.answer_index)}</b>: {x.options[x.answer_index]}</p>}
+                    {x.self_confidence && <p className="mt-1 text-xs text-muted">You felt {SURE[x.self_confidence]}.</p>}
                     {x.explanation && <p className="break-anywhere mt-2 rounded-md bg-surface-2 px-3 py-2 text-sm text-muted">{x.explanation}</p>}
+                    <Contest subjectId={id} attemptId={aid} answer={x} />
                   </div>
                 </div>
               </Card>

@@ -66,7 +66,7 @@ def test_migration_creates_tables(isolated):  # noqa: F811
     store = open_db()
     try:
         db = store.db
-        tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        tables = {r[0] for r in db.execute(("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()") if getattr(db, "pg", False) else "SELECT name FROM sqlite_master WHERE type='table'")}
         assert "quiz_attempts"          in tables
         assert "attempt_answers"        in tables
         assert "quiz_proctoring_events" in tables
@@ -81,7 +81,7 @@ def test_schema_version_is_the_latest_migration(isolated):  # noqa: F811
     try:
         v = store.db.execute("SELECT MAX(v) FROM schema_version").fetchone()[0]
         from studyhub.db import MIGRATIONS
-        assert v == max(n for n, _ in MIGRATIONS) == 17
+        assert v == max(n for n, _ in MIGRATIONS) == 18
     finally:
         store.close()
 

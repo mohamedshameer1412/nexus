@@ -141,7 +141,7 @@ def prerequisite_topics(db: sqlite3.Connection, subject_id: int, topic_id: int) 
     if cur is None:
         return []
     prev = db.execute(
-        "SELECT t.id FROM topics t WHERE t.subject_id=? AND t.ordinal<? AND EXISTS(SELECT 1 FROM mcq_items m WHERE m.topic_id=t.id) "
+        "SELECT t.id FROM topics t WHERE t.subject_id=? AND t.ordinal<? AND EXISTS(SELECT 1 FROM mcq_items m WHERE m.topic_id=t.id AND m.review='approved') "
         "ORDER BY t.ordinal DESC LIMIT 1", (subject_id, cur[0])).fetchone()
     return [prev[0]] if prev else []
 
@@ -163,7 +163,7 @@ def backtrack(db: sqlite3.Connection, user_id: int, subject_id: int, attempt_id:
     queued, names = 0, []
     for pre in prerequisite_topics(db, subject_id, topic):
         pool = [r[0] for r in db.execute(
-            "SELECT m.id FROM mcq_items m JOIN subjects s ON s.id=m.subject_id WHERE m.topic_id=? AND m.subject_id=? AND s.user_id=?",
+            "SELECT m.id FROM mcq_items m JOIN subjects s ON s.id=m.subject_id WHERE m.topic_id=? AND m.subject_id=? AND s.user_id=? AND m.review='approved'",
             (pre, subject_id, user_id))]
         # questions of that topic that are already waiting later in this quiz are pulled forward; new ones are added if the quiz has too few
         pull = [i for i in pool if i in existing and existing[i]["answered_at"] is None and existing[i]["backtrack_from"] is None]

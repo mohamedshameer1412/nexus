@@ -31,7 +31,7 @@ def due_cards(db: sqlite3.Connection, user_id: int, subject_id: int, now: float 
     now = time.time() if now is None else now
     rows = db.execute(
         "SELECT m.id, m.question, m.options, m.topic_path, c.due, c.reps FROM mcq_items m JOIN subjects s ON s.id=m.subject_id "
-        "LEFT JOIN card_reviews c ON c.item_id=m.id AND c.user_id=? WHERE m.subject_id=? AND s.user_id=? ORDER BY m.id", (user_id, subject_id, user_id)).fetchall()
+        "LEFT JOIN card_reviews c ON c.item_id=m.id AND c.user_id=? WHERE m.subject_id=? AND s.user_id=? AND m.review='approved' ORDER BY m.id", (user_id, subject_id, user_id)).fetchall()
     import json
     due = sorted([r for r in rows if r["due"] is not None and r["due"] <= now], key=lambda r: r["due"])
     new = [r for r in rows if r["due"] is None][:NEW_PER_SESSION]
@@ -46,7 +46,7 @@ def review(db: sqlite3.Connection, user_id: int, subject_id: int, item_id: int, 
     if grade not in GRADES:
         return None
     now = time.time() if now is None else now
-    owns = db.execute("SELECT 1 FROM mcq_items m JOIN subjects s ON s.id=m.subject_id WHERE m.id=? AND m.subject_id=? AND s.user_id=?", (item_id, subject_id, user_id)).fetchone()
+    owns = db.execute("SELECT 1 FROM mcq_items m JOIN subjects s ON s.id=m.subject_id WHERE m.id=? AND m.subject_id=? AND s.user_id=? AND m.review='approved'", (item_id, subject_id, user_id)).fetchone()
     if owns is None:
         return None
     cur = db.execute("SELECT ease, interval_days, reps, lapses FROM card_reviews WHERE user_id=? AND item_id=?", (user_id, item_id)).fetchone()

@@ -1,13 +1,14 @@
-"""Local semantic search: fastembed embeddings stored next to the passages, compared with sqlite-vec.
+"""Local semantic search: Sentence-BERT embeddings stored next to the passages, searched with FAISS.
 
-Keyword search (FTS5/BM25, `retrieval.py`) finds passages that share the question's words. It misses a passage that says
-the same thing in other words ("LIFO" vs "last in, first out"). This module adds the missing half:
+Keyword search (full-text, `retrieval.py`) finds passages that share the question's words. It misses a passage that says
+the same thing in other words ("LIFO" vs "last in, first out"). This module adds the missing half, and it is also how a
+generated question finds its source paragraph:
 
-  * every passage gets a 384-number embedding from `BAAI/bge-small-en-v1.5` (fastembed, runs on the CPU, no API key),
-  * embeddings are plain BLOBs in `chunk_embeddings` (a normal table, so ON DELETE CASCADE keeps it tidy and a
-    connection without the extension can still delete a document),
-  * a query is compared with `vec_distance_cosine()` from sqlite-vec, scoped to ONE subject of ONE user in the SQL,
-  * when sqlite-vec cannot be loaded the same comparison runs in Python, so results never depend on the extension.
+  * every passage gets a 384-number embedding from Sentence-BERT (`sentence-transformers/all-MiniLM-L6-v2`, CPU, no API
+    key; fastembed's bge-small is the fallback when sentence-transformers is not installed),
+  * embeddings are plain rows in `chunk_embeddings` (a normal table, so ON DELETE CASCADE keeps it tidy),
+  * a query is matched with a FAISS inner-product index (cosine, the vectors are normalised) built from ONE subject of ONE
+    user and cached until that subject's passages change; without FAISS the same comparison runs in Python.
 
 Indexing runs in its own background thread after an upload (the model worker stays free for answers) and on start-up
 for anything not yet indexed. Semantic search is an addition, never a requirement: if the model cannot be loaded
@@ -28,12 +29,12 @@ from typing import Callable, Iterable, Protocol
 
 log = logging.getLogger("studyhub.semantic")
 
-MODEL = os.environ.get("STUDYHUB_EMBED_MODEL", "BAAI/bge-small-en-v1.5")
+MODEL = os.environ.get("STUDYHUB_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 BATCH = 64
 CANDIDATES = 30
 # Cosine similarity at or above which a passage counts as "about the question" even when it shares few words with it.
-# bge-small scores unrelated English text around 0.4-0.6 and paraphrases above 0.75.
-RELEVANT_SIMILARITY = float(os.environ.get("STUDYHUB_SEMANTIC_RELEVANT", "0.78"))
+# MiniLM scores unrelated English text below 0.25 and paraphrases 0.4-0.6; bge-small scores higher across the board.
+RELEVANT_SIMILARITY = float(os.environ.get("STUDYHUB_SEMANTIC_RELEVANT", "0.78" if "bge" in MODEL.lower() else "0.5"))
 
 
 class Embedder(Protocol):
@@ -42,11 +43,23 @@ class Embedder(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
-class FastEmbedder:
-    """fastembed's TextEmbedding, loaded once per process on first use."""
+class SentenceBertEmbedder:
+    """Sentence-BERT (sentence-transformers), loaded once per process on first use."""
 
     def __init__(self, model: str = MODEL):
-        from fastembed import TextEmbedding              # imported lazily: start-up stays fast and tests never load it
+        from sentence_transformers import SentenceTransformer   # imported lazily: start-up stays fast and tests never load it
+        self.name = model
+        self._m = SentenceTransformer(model, device="cpu")
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [list(map(float, v)) for v in self._m.encode(texts, batch_size=BATCH, normalize_embeddings=True)]
+
+
+class FastEmbedder:
+    """fastembed's TextEmbedding (ONNX, no torch): the fallback when sentence-transformers is missing."""
+
+    def __init__(self, model: str = "BAAI/bge-small-en-v1.5"):
+        from fastembed import TextEmbedding
         self.name = model
         self._m = TextEmbedding(model)
 
@@ -54,10 +67,19 @@ class FastEmbedder:
         return [list(map(float, v)) for v in self._m.embed(texts, batch_size=BATCH)]
 
 
+def _default_embedder() -> "Embedder":
+    if "bge" in MODEL.lower():
+        return FastEmbedder(MODEL)
+    try:
+        return SentenceBertEmbedder(MODEL)
+    except ImportError:
+        return FastEmbedder()
+
+
 _lock = threading.Lock()
 _embedder: Embedder | None = None
 _failed: str | None = None
-_factory: Callable[[], Embedder] = FastEmbedder
+_factory: Callable[[], Embedder] = _default_embedder
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="nexus-embed")
 
 
@@ -116,24 +138,9 @@ def unpack(b: bytes) -> list[float]:
     return list(struct.unpack(f"{len(b) // 4}f", b))
 
 
-def load_vec(db: sqlite3.Connection) -> bool:
-    """Load sqlite-vec into this connection if possible (a no-op when it is already loaded)."""
-    try:
-        db.execute("SELECT vec_version()").fetchone()
-        return True
-    except sqlite3.OperationalError:
-        pass
-    try:
-        import sqlite_vec
-        db.enable_load_extension(True)
-        sqlite_vec.load(db)
-        db.enable_load_extension(False)
-        return True
-    except Exception:
-        return False
-
-
 def ensure_schema(db: sqlite3.Connection) -> None:
+    if getattr(db, "pg", False):                          # created by migration 16
+        return
     db.execute("""CREATE TABLE IF NOT EXISTS chunk_embeddings (
         chunk_id  INTEGER PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
         model     TEXT NOT NULL,
@@ -167,7 +174,8 @@ def index_chunks(db: sqlite3.Connection, chunk_ids: list[int]) -> int:
             continue
         texts = [((r["heading_path"] + "\n") if r["heading_path"] else "") + r["text"] for r in rows]
         vecs = e.embed(texts)
-        db.executemany("INSERT OR REPLACE INTO chunk_embeddings(chunk_id, model, dim, vec) VALUES (?,?,?,?)",
+        db.executemany("INSERT INTO chunk_embeddings(chunk_id, model, dim, vec) VALUES (?,?,?,?) ON CONFLICT(chunk_id) DO UPDATE "
+                       "SET model=excluded.model, dim=excluded.dim, vec=excluded.vec",
                        [(r["id"], e.name, len(v), pack(v)) for r, v in zip(rows, vecs)])
         done += len(rows)
     return done
@@ -204,8 +212,11 @@ def schedule_for(db: sqlite3.Connection, document_id: int | None = None):
     For an in-memory database (tests, scripts) it indexes right away on `db` itself."""
     if embedder() is None:
         return None
-    row = db.execute("PRAGMA database_list").fetchone()
-    path = row[2] if row else ""
+    if getattr(db, "pg", False):
+        path = db.path if not db.schema.startswith("m_") else ""
+    else:
+        row = db.execute("PRAGMA database_list").fetchone()
+        path = row[2] if row else ""
     if not path:
         index_chunks(db, pending_chunk_ids(db, 100000, document_id))
         return None
@@ -232,13 +243,14 @@ def search(db: sqlite3.Connection, user_id: int, subject_id: int, query: str, k:
     base = ("FROM chunk_embeddings ce JOIN chunks c ON c.id = ce.chunk_id JOIN subjects s ON s.id = c.subject_id "
             "WHERE c.subject_id = ? AND s.user_id = ? AND c.quarantined <= ? AND ce.model = ?")
     args = (subject_id, user_id, 0 if answers else 1, e.name)
-    if load_vec(db):
-        try:
-            rows = db.execute(f"SELECT c.id, vec_distance_cosine(ce.vec, ?) AS d {base} ORDER BY d LIMIT ?", (qv, *args, int(k))).fetchall()
-            return [(int(r[0]), round(1.0 - float(r[1]), 4)) for r in rows]
-        except sqlite3.OperationalError:
-            pass
+    ids, index = _index(db, base, args)
+    if not ids:
+        return []
     q = unpack(qv)
+    if index is not None:
+        import numpy as np
+        sims, pos = index.search(np.asarray([q], dtype="float32"), min(int(k), len(ids)))
+        return [(ids[p], round(float(d), 4)) for d, p in zip(sims[0], pos[0]) if p >= 0]
     scored = []
     for cid, blob in db.execute(f"SELECT c.id, ce.vec {base}", args).fetchall():
         v = unpack(blob)
@@ -246,6 +258,40 @@ def search(db: sqlite3.Connection, user_id: int, subject_id: int, query: str, k:
             scored.append((int(cid), round(sum(a * b for a, b in zip(q, v)), 4)))
     scored.sort(key=lambda x: -x[1])
     return scored[:k]
+
+
+# One FAISS index per (database, subject, user, quarantine filter, model), rebuilt when the subject's embeddings change.
+_faiss: dict[tuple, tuple] = {}
+_faiss_lock = threading.Lock()
+
+
+def _index(db, base: str, args: tuple):
+    """(chunk ids in index order, faiss.IndexFlatIP or None when FAISS is not installed)."""
+    sig = tuple(db.execute(f"SELECT COUNT(*), MAX(ce.chunk_id), SUM(ce.dim) {base}", args).fetchone())
+    if not sig[0]:
+        return [], None
+    key = (getattr(db, "path", None) or id(db), *args)
+    with _faiss_lock:
+        hit = _faiss.get(key)
+        if hit and hit[0] == sig:
+            return hit[1], hit[2]
+    try:
+        import faiss
+        import numpy as np
+    except ImportError:
+        return [1], None                                       # any non-empty list: the caller scores in Python
+    rows = db.execute(f"SELECT c.id, ce.vec {base} ORDER BY c.id", args).fetchall()
+    vecs = [unpack(r[1]) for r in rows]
+    dim = len(vecs[0])
+    rows_ok = [(int(r[0]), v) for r, v in zip(rows, vecs) if len(v) == dim]
+    index = faiss.IndexFlatIP(dim)
+    index.add(np.asarray([v for _, v in rows_ok], dtype="float32"))
+    ids = [cid for cid, _ in rows_ok]
+    with _faiss_lock:
+        if len(_faiss) > 256:
+            _faiss.clear()
+        _faiss[key] = (sig, ids, index)
+    return ids, index
 
 
 def coverage(db: sqlite3.Connection, user_id: int | None = None) -> dict:

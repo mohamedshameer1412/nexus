@@ -147,7 +147,7 @@ def test_migrations_are_idempotent_and_recorded_once(tmp_path):
     migrate(store.db)
     versions = [r[0] for r in store.db.execute("SELECT v FROM schema_version ORDER BY v")]
     assert versions == [v for v, _ in MIGRATIONS]
-    tables = {r[0] for r in store.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    tables = {r[0] for r in store.db.execute(("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()") if getattr(store.db, "pg", False) else "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"users", "sessions", "login_attempts", "subjects", "runs", "versions"} <= tables, \
         "StudyHub tables and the spine's tables live in one file"
     store.close()

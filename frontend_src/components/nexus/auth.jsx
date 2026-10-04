@@ -202,7 +202,7 @@ export function AuthScreen({ initial = "login" }) {
 
   const set = (name, value) => { setForm((f) => ({ ...f, [name]: value })); setErrors((e) => ({ ...e, [name]: undefined })); };
   const switchTo = (next) => { setServerError(""); setErrors({}); setMode(next); window.history.replaceState(null, "", next === "register" ? "/register" : "/login"); };
-  const fillDemo = () => { setMethod("NIC Email"); setForm((f) => ({ ...f, email: "demo@nexus.local", password: "nexus-demo-2026" })); setErrors({}); };
+  const fillDemo = (email, password) => { setMethod("NIC Email"); setForm((f) => ({ ...f, email, password })); setErrors({}); };
 
   async function submit(ev) {
     ev.preventDefault();
@@ -232,10 +232,12 @@ export function AuthScreen({ initial = "login" }) {
           <p className="mt-1 text-center text-[14.5px] text-[#5A6E8C]">{isLogin ? "Sign in to continue your learning journey" : "It takes less than a minute."}</p>
           {isLogin && (
             <Alert tone="info" icon={KeyRound} className="mt-5 items-center">
-              <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0">Demo account:<br /><b className="font-semibold">demo@nexus.local</b> / <b className="font-semibold">nexus-demo-2026</b></p>
-                <Button type="button" variant="secondary" size="sm" className="h-8 shrink-0 rounded-lg" onClick={fillDemo}>Use this</Button>
-              </div>
+              {[["Officer", "demo@nexus.local", "nexus-demo-2026"], ["Faculty", "faculty@nexus.local", "nexus-faculty-2026"]].map(([who, email, pw]) => (
+                <div key={who} className="flex items-center justify-between gap-3 py-0.5">
+                  <p className="min-w-0">{who} demo:<br /><b className="font-semibold">{email}</b> / <b className="font-semibold">{pw}</b></p>
+                  <Button type="button" variant="secondary" size="sm" className="h-8 shrink-0 rounded-lg" onClick={() => fillDemo(email, pw)}>Use this</Button>
+                </div>
+              ))}
             </Alert>
           )}
           <form className="mt-6 space-y-4" onSubmit={submit} noValidate>

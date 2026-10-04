@@ -131,6 +131,13 @@ def _mentions(db: sqlite3.Connection, user_id: int, skill: str) -> list[dict]:
         return []
     query = " ".join('"' + w.replace('"', "") + '"' for w in words[:4])
     try:
+        if getattr(db, "pg", False):
+            from slice import pg
+            rows = db.execute(
+                "SELECT c.subject_id AS sid, s.name AS name, COUNT(*) AS n FROM chunks c JOIN subjects s ON s.id=c.subject_id "
+                "WHERE c.tsv @@ to_tsquery('english', ?) AND s.user_id=? GROUP BY c.subject_id, s.name ORDER BY n DESC LIMIT 3",
+                (pg.tsquery(query), user_id)).fetchall()
+            return [{"subject_id": r["sid"], "subject": r["name"], "chunks": r["n"]} for r in rows]
         rows = db.execute(
             "SELECT c.subject_id AS sid, s.name AS name, COUNT(*) AS n FROM chunks_fts f JOIN chunks c ON c.id=f.rowid JOIN subjects s ON s.id=c.subject_id "
             "WHERE chunks_fts MATCH ? AND s.user_id=? GROUP BY c.subject_id ORDER BY n DESC LIMIT 3", (query, user_id)).fetchall()

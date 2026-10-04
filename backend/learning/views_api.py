@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from core.http import (SESSION_COOKIE, Ctx, _db, _int, api_view, body as parse_body, client_ip as _ip, err, guard, iso,
                        pre_ok as _pre_ok, pre_token, query, set_session_cookie, signed_in, with_pre_cookie)
-from studyhub import auth, cards, career, digest, foresight, jobs, patterns, quiz_flow, scoring, tutor, twin as twinmod, roadmap as roadmapmod, explain, ingest, insights, mail_templates, mailer, mcq, models, otp, qa, retrieval, settings, webfetch
+from studyhub import auth, bkt, cards, faculty, career, digest, foresight, jobs, patterns, quiz_flow, scoring, tutor, twin as twinmod, roadmap as roadmapmod, explain, ingest, insights, mail_templates, mailer, mcq, models, otp, qa, retrieval, settings, webfetch
 from studyhub.repo import Repo, SubjectError
 
 
@@ -24,7 +24,8 @@ from studyhub.repo import Repo, SubjectError
 # --------------------------------------------------------------------------------------------------- session
 
 def _user_json(u: dict) -> dict:
-    return {"id": u["id"], "username": u["username"], "cloud_consent": bool(u["cloud_consent"]), "email": u.get("email")}
+    return {"id": u["id"], "username": u["username"], "cloud_consent": bool(u["cloud_consent"]), "email": u.get("email"),
+            "role": u.get("role") or "officer"}
 
 
 @api_view(status=200)
@@ -116,7 +117,7 @@ def _counts(db, subject_id: int) -> dict:
     return {"documents": q("SELECT COUNT(*) FROM documents WHERE subject_id=?"),
             "topics": q("SELECT COUNT(*) FROM topics WHERE subject_id=?"),
             "questions": q("SELECT COUNT(*) FROM doubts WHERE subject_id=?"),
-            "practice_questions": q("SELECT COUNT(*) FROM mcq_items WHERE subject_id=?")}
+            "practice_questions": q("SELECT COUNT(*) FROM mcq_items WHERE subject_id=? AND review='approved'")}
 
 
 def _subject_json(db, s: dict) -> dict:
@@ -566,6 +567,7 @@ class QuizStartBody(BaseModel):
     adaptive: bool = False                                   # pick the most informative questions for this student instead of a random set
     count: int | None = Field(default=None, ge=3, le=20)     # how many questions (default: up to MAX_QUIZ_ITEMS)
     difficulty: str = "mixed"                                # "mixed" | "easy" | "medium" | "hard" (standard quizzes)
+    unseen_only: bool = False                                # a verified re-test: only questions this officer has never answered
 
 
 class QuizAnswerBody(BaseModel):
@@ -574,6 +576,7 @@ class QuizAnswerBody(BaseModel):
     chosen: int
     response_time: float = 0.0
     hesitations: int = 0
+    confidence: int | None = Field(default=None, ge=1, le=3)  # the officer's own rating: 1 guessing, 2 unsure, 3 sure
 
 
 class EventBody(BaseModel):
@@ -590,7 +593,8 @@ END_REASONS = {"tab_switch": "You left the assessment page", "full_screen_exit":
 
 def _attempt_json(a: dict) -> dict:
     correct, wrong = int(a.get("correct_answers") or 0), int(a.get("incorrect_answers") or 0)
-    return {"id": a["id"], "mode": a.get("mode") or "practice", "kind": a.get("kind") or "standard", "active": bool(a["is_active"]), "started_at": iso(a.get("started_at")), "finished_at": iso(a.get("finished_at")),
+    return {"id": a["id"], "mode": a.get("mode") or "practice", "kind": a.get("kind") or "standard", "verified_retest": bool(a.get("verified_retest")),
+            "active": bool(a["is_active"]), "started_at": iso(a.get("started_at")), "finished_at": iso(a.get("finished_at")),
             "correct": correct, "incorrect": wrong, "answered": correct + wrong}
 
 
@@ -647,6 +651,12 @@ def quiz_start(request, subject_id):
             for i in items:
                 per.setdefault(i["topic_id"], []).append(i)
             items = [x for group in per.values() for x in random.sample(group, min(2, len(group)))]
+        if body.unseen_only:                   # verified re-test: anchor questions this officer has never seen
+            seen = {r[0] for r in db.execute("SELECT DISTINCT aa.item_id FROM attempt_answers aa JOIN quiz_attempts qa ON qa.id=aa.attempt_id "
+                                             "WHERE qa.user_id=? AND qa.subject_id=?", (ctx.uid, sid))}
+            items = [i for i in items if i["id"] not in seen]
+            if not items:
+                return err(400, "no_unseen_questions", "Every approved question here has been seen already. Generate new ones for a verified re-test.")
         if body.difficulty not in ("mixed", "easy", "medium", "hard"):
             return err(400, "invalid", "The difficulty must be mixed, easy, medium or hard.")
         if body.kind == "standard" and body.difficulty != "mixed":
@@ -666,13 +676,14 @@ def quiz_start(request, subject_id):
                                                  attempt_number=len(ctx.repo.list_attempts(ctx.uid, sid, limit=100)) + 1)
         if attempt is None:
             return err(400, "invalid", "That topic is not part of this subject.")
-        db.execute("UPDATE quiz_attempts SET mode=?, kind=? WHERE id=? AND user_id=?", (body.mode, body.kind, attempt["id"], ctx.uid))
+        db.execute("UPDATE quiz_attempts SET mode=?, kind=?, verified_retest=? WHERE id=? AND user_id=?",
+                   (body.mode, body.kind, int(body.unseen_only), attempt["id"], ctx.uid))
         if body.kind == "revision":
             for t in {i["topic_id"] for i in items[:limit] if i["topic_id"]}:
                 _log_action(ctx, t, "revision")
         elif body.kind == "standard" and body.topic_id:
             _log_action(ctx, body.topic_id, "practice")
-        return JsonResponse({"id": attempt["id"], "mode": body.mode, "kind": body.kind}, status=201)
+        return JsonResponse({"id": attempt["id"], "mode": body.mode, "kind": body.kind, "verified_retest": body.unseen_only}, status=201)
 
 
 def _own_attempt(ctx, attempt_id: str):
@@ -727,6 +738,8 @@ def quiz_answer(request, subject_id, attempt_id):
                                            max(0, body.hesitations), answer_row_id=body.answer_row_id)
         if rec is None:
             return err(400, "not_recorded", "That answer could not be recorded.")
+        if body.confidence is not None:
+            db.execute("UPDATE attempt_answers SET self_confidence=? WHERE id=? AND attempt_id=?", (body.confidence, body.answer_row_id, att["id"]))
         missed = db.execute("SELECT is_correct FROM attempt_answers WHERE id=?", (body.answer_row_id,)).fetchone()
         step = insights.backtrack(db, ctx.uid, ctx.subject["id"], att["id"], body.answer_row_id) if missed and missed["is_correct"] == 0 else None
         return {"ok": True, "backtrack": step}                                   # correctness is shown on the result page, not while answering
@@ -786,9 +799,14 @@ def quiz_result(request, subject_id, attempt_id):
         ended = db.execute("SELECT details_json FROM quiz_proctoring_events WHERE attempt_id=? AND event_type='auto_submit' ORDER BY id DESC LIMIT 1", (att["id"],)).fetchone()
         ended_reason = END_REASONS.get(json.loads(ended["details_json"]).get("reason")) if ended else None
         diag = insights.diagnosis(db, ctx.uid, sid, att["id"], ctx.subject.get("level")) if (att.get("kind") == "diagnostic") else None
+        contests = {c["answer_id"]: c for c in faculty.list_contests(db, user_id=ctx.uid, attempt_id=att["id"])}
         return {"attempt": _attempt_json(att), "diagnosis": diag, "ended_reason": ended_reason, "skipped": len(rows) - len(answered),
-                "answers": [{"question": r["question"], "topic": r.get("topic_name") or r.get("topic_path") or "", "options": r["options"],
+                "gap": bkt.gap_report(db, ctx.uid, sid, att["id"]),
+                "answers": [{"answer_id": r["id"], "question": r["question"], "topic": r.get("topic_name") or r.get("topic_path") or "", "options": r["options"],
                              "chosen_index": r["chosen_index"], "answer_index": r["answer_index"], "correct": bool(r.get("is_correct")),
+                             "self_confidence": r.get("self_confidence"),
+                             "contest": ({"id": contests[r["id"]]["id"], "status": contests[r["id"]]["status"], "resolution": contests[r["id"]]["resolution"]}
+                                         if r["id"] in contests else None),
                              "explanation": r.get("explanation") or "", "backtrack": r.get("backtrack_from") is not None} for r in answered],
                 "focus_events": {k: events.get(k, 0) for k in ("tab_switch", "full_screen_exit", "copy_attempt", "paste_attempt")},
                 "weak_topics": [_weak_json(w) for w in ctx.repo.weak_topics(ctx.uid, sid)]}
@@ -953,7 +971,7 @@ def dashboard(request):
                 "id": sid, "name": s["name"],
                 "materials": one("SELECT COUNT(*) FROM documents WHERE subject_id=?", sid),
                 "questions": one("SELECT COUNT(*) FROM doubts WHERE subject_id=? AND user_id=?", sid, uid),
-                "practice_questions": one("SELECT COUNT(*) FROM mcq_items WHERE subject_id=?", sid),
+                "practice_questions": one("SELECT COUNT(*) FROM mcq_items WHERE subject_id=? AND review='approved'", sid),
                 "quizzes": one("SELECT COUNT(*) FROM quiz_attempts WHERE user_id=? AND subject_id=? AND is_active=0 AND correct_answers+incorrect_answers>0", uid, sid),
                 "answered": correct + wrong, "correct": correct,
             })

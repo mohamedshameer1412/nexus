@@ -56,3 +56,9 @@ def legacy_ui() -> bool:
     default = "1" if os.environ.get("PYTEST_CURRENT_TEST") else "0"
     return os.environ.get("STUDYHUB_LEGACY_UI", default) == "1"
 
+
+
+def faculty_review() -> bool:
+    """AI-drafted questions wait for a faculty member's approval before officers see them (STUDYHUB_FACULTY_REVIEW=on, the
+    default). Off: every verified question goes straight into the bank."""
+    return os.environ.get("STUDYHUB_FACULTY_REVIEW", "on").lower() not in ("0", "off", "false", "no")

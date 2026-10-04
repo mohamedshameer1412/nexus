@@ -7,7 +7,9 @@ Creates the user  demo@nexus.local / nexus-demo-2026  with:
   * "Data Structures & Algorithms": the sample course notes, practice questions with source quotes, a prerequisite graph,
     six quizzes spread over three weeks (improving), a study plan, self-ratings, flashcard reviews, notes, questions asked,
   * "Computer Networks": the sample Word notes and a first quiz,
-  * a career goal from a short job description.
+  * a career goal from a short job description,
+  * a faculty account  faculty@nexus.local / nexus-faculty-2026  with AI-drafted questions waiting for review (one with a key
+    SymPy recomputed), an open contest from the demo officer, and verified intervention outcomes for the NSSTA insights.
 Practice questions are written here by hand (no model is needed); everything else goes through the same API the app uses.
 Run it against a DEMO database only (STUDYHUB_DB): it rewrites timestamps of the demo user's quizzes to spread them over time.
 """
@@ -28,6 +30,16 @@ from studyhub.db import open_db  # noqa: E402
 
 API = os.environ.get("NEXUS_API", "http://127.0.0.1:8100") + "/api/v1"
 EMAIL, PASSWORD, USER = "demo@nexus.local", "nexus-demo-2026", "demo"
+F_EMAIL, F_PASSWORD, F_USER = "faculty@nexus.local", "nexus-faculty-2026", "faculty"
+# AI drafts waiting for faculty review: (topic, question, options, answer, explanation, quote, SymPy record)
+PENDING = [
+    ("Arrays", "An array of 8 elements doubles when full; how many slots does it have after one more append?", ["9", "12", "16", "24"], 2,
+     "Doubling 8 gives 16.", "grows by allocating a larger block, usually double the size", "SymPy: 8 * 2 = 16"),
+    ("Stacks", "Which operation returns the top element of a stack?", ["Enqueue", "Pop", "Shift", "Rotate"], 1,
+     "Pop removes and returns the top element.", "the pop operation removes and returns the element from the top", ""),
+    ("Queues", "In a circular buffer, what happens to the rear index at the end of the array?", ["It stops", "It wraps around to the start", "It doubles", "It is reset to the middle"], 1,
+     "The indices wrap around.", "letting the front and rear indices wrap around to the start", ""),
+]
 SAMPLES = ROOT / "data" / "sample-materials"
 random.seed(7)
 
@@ -170,7 +182,7 @@ def main():
                        (net, net_first[1], net_first[0], q, json.dumps(opts), ans, "From the course notes.", "See the notes.", f"demo-net-{i}", now - 5 * 86400, "easy"))
     for t, p in PREREQS:
         if t in topics and p in topics:
-            db.execute("INSERT OR REPLACE INTO topic_prereqs(topic_id, prereq_id, confirmed, origin) VALUES (?,?,1,'manual')", (topics[t], topics[p]))
+            db.execute("INSERT INTO topic_prereqs(topic_id, prereq_id, confirmed, origin) VALUES (?,?,1,'manual') ON CONFLICT(topic_id, prereq_id) DO UPDATE SET confirmed=1, origin='manual'", (topics[t], topics[p]))
     print("practice questions", n)
     by_item = {r["id"]: r for r in db.execute("SELECT m.id, m.answer_index, t.name FROM mcq_items m JOIN topics t ON t.id=m.topic_id WHERE m.subject_id IN (?,?)", (dsa, net))}
 
@@ -229,8 +241,33 @@ def main():
     a.req("POST", "/career", json={"title": "Graduate Software Engineer", "text": jd})
     a.req("POST", f"/subjects/{dsa}/notes/smart", json={})
     a.req("GET", f"/subjects/{dsa}/agents")
+    seed_faculty(a, db, uid, dsa, topics, paths, now, last)
     store.close()
-    print(f"\nDone. Sign in as {EMAIL} / {PASSWORD}")
+    print(f"\nDone. Officer: {EMAIL} / {PASSWORD}   Faculty: {F_EMAIL} / {F_PASSWORD}")
+
+
+def seed_faculty(a, db, uid, dsa, topics, paths, now, last):
+    """An open contest from the officer, a faculty account, drafts waiting for review, verified intervention outcomes."""
+    if last:
+        res = a.req("GET", f"/subjects/{dsa}/quiz/attempts/{last}/result").json()
+        wrong = next((x for x in res.get("answers", []) if not x["correct"]), None)
+        if wrong:
+            a.req("POST", f"/subjects/{dsa}/quiz/attempts/{last}/answers/{wrong['answer_id']}/contest",
+                  json={"reason": "The notes on page 2 support the option I chose; please check the key."})
+    f = Client()
+    if f.req("POST", "/register", json={"username": F_USER, "email": F_EMAIL, "password": F_PASSWORD}).status_code == 201:
+        db.execute("UPDATE users SET role='faculty' WHERE username=?", (F_USER,))
+    for i, (topic, q, opts, ans, why, quote, check) in enumerate(PENDING):
+        if topic in topics:
+            db.execute("INSERT INTO mcq_items(subject_id, topic_id, topic_path, question, options, answer_index, explanation, quote, doc_title, solver, model, key, "
+                       "created_at, difficulty, review, key_check) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                       (dsa, topics[topic], paths[topic], q, json.dumps(opts), ans, why, quote, "dsa-course-notes.txt", "agreed", "llama3.1:8b",
+                        f"draft-{i}", now - 3600 * (i + 1), "medium", "pending", check))
+    for topic, kind, before, after, outcome in [("Recursion", "worked_example", .32, .61, "improved"), ("Trees", "practice", .41, .58, "improved"),
+                                                ("Trees", "flashcards", .44, .47, "no_change"), ("Graphs", "worked_example", .38, .66, "improved")]:
+        if topic in topics:
+            db.execute("INSERT INTO interventions(user_id, subject_id, topic_id, kind, status, conf_before, outcome, conf_after, verified_at, created_at, updated_at) "
+                       "VALUES (?,?,?,?,?,?,?,?,?,?,?)", (uid, dsa, topics[topic], kind, "done", before, outcome, after, now - 86400, now - 6 * 86400, now - 86400))
 
 
 if __name__ == "__main__":

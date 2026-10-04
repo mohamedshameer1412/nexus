@@ -1,7 +1,7 @@
 // Runtime checks of every API response (JavaScript has no compiler to catch a renamed field). A mismatch throws one clear error.
 import { z } from "zod";
 
-export const User = z.object({ id: z.number(), username: z.string(), cloud_consent: z.boolean(), email: z.string().nullable().optional() });
+export const User = z.object({ id: z.number(), username: z.string(), cloud_consent: z.boolean(), email: z.string().nullable().optional(), role: z.enum(["officer", "faculty"]).optional() });
 export const Session = z.object({ authenticated: z.boolean(), user: User.nullable(), csrf: z.string() });
 
 export const Counts = z.object({ documents: z.number(), topics: z.number(), questions: z.number(), practice_questions: z.number() });
@@ -70,7 +70,7 @@ export const McqAnswer = z.object({
 
 // ---- quiz and progress ----
 export const Weak = z.object({ topic_id: z.number(), name: z.string(), path: z.string(), answered: z.number(), correct: z.number(), mastery: z.number(), state: z.string() });
-export const Attempt = z.object({ id: z.number(), mode: z.enum(["practice", "assessment"]), kind: z.string().optional(), active: z.boolean(), started_at: z.string().nullable(), finished_at: z.string().nullable(), correct: z.number(), incorrect: z.number(), answered: z.number() });
+export const Attempt = z.object({ id: z.number(), mode: z.enum(["practice", "assessment"]), kind: z.string().optional(), verified_retest: z.boolean().optional(), active: z.boolean(), started_at: z.string().nullable(), finished_at: z.string().nullable(), correct: z.number(), incorrect: z.number(), answered: z.number() });
 export const QuizHome = z.object({
   questions_in_bank: z.number(), topics: z.array(z.object({ id: z.number(), path: z.string() })), active_attempt: z.number().nullable(), active_mode: z.string().nullable().optional(),
   attempts: z.array(Attempt), weak_topics: z.array(Weak),
@@ -96,7 +96,18 @@ export const NoteList = z.object({ notes: z.array(NoteItem) });
 export const Note = NoteItem.extend({ body: z.string() });
 export const QuizResult = z.object({
   attempt: Attempt, skipped: z.number(), ended_reason: z.string().nullable(), diagnosis: Diagnosis.nullable().optional(),
-  answers: z.array(z.object({ question: z.string(), topic: z.string(), options: z.array(z.string()), chosen_index: z.number(), answer_index: z.number(), correct: z.boolean(), explanation: z.string(), backtrack: z.boolean().optional() })),
+  answers: z.array(z.object({
+    answer_id: z.number().optional(), question: z.string(), topic: z.string(), options: z.array(z.string()), chosen_index: z.number(), answer_index: z.number(), correct: z.boolean(),
+    explanation: z.string(), backtrack: z.boolean().optional(), self_confidence: z.number().nullable().optional(),
+    contest: z.object({ id: z.number(), status: z.enum(["open", "upheld", "rejected"]), resolution: z.string() }).nullable().optional(),
+  })),
+  gap: z.object({
+    mastered_at: z.number(), closed: z.boolean(), confidently_wrong: z.number(), rated: z.number(),
+    topics: z.array(z.object({
+      topic_id: z.number(), topic: z.string(), before: z.number().nullable().optional(), after: z.number(), closed: z.boolean(),
+      next_gap: z.object({ topic_id: z.number(), topic: z.string(), chain: z.array(z.string()) }).optional(),
+    })),
+  }).optional(),
   focus_events: z.object({ tab_switch: z.number(), full_screen_exit: z.number(), copy_attempt: z.number(), paste_attempt: z.number() }),
   weak_topics: z.array(Weak),
 });

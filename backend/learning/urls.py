@@ -2,7 +2,7 @@
 from django.urls import path
 
 from core.http import methods
-from learning import views_api as api, views_ext as ext
+from learning import views_api as api, views_ext as ext, views_faculty as fac
 
 urlpatterns = [
     path("session", methods(GET=api.session_info)),
@@ -29,6 +29,14 @@ urlpatterns = [
     path("analytics/report.pdf", methods(GET=ext.analytics_report)),
     path("analytics/workbook.xlsx", methods(GET=ext.analytics_workbook)),
     path("system/status", methods(GET=ext.system_status)),
+    path("contests", methods(GET=fac.my_contests)),
+    path("faculty/review", methods(GET=fac.review_queue)),
+    path("faculty/review/<str:item_id>", methods(PUT=fac.edit_item)),
+    path("faculty/review/<str:item_id>/approve", methods(POST=fac.approve)),
+    path("faculty/review/<str:item_id>/reject", methods(POST=fac.reject)),
+    path("faculty/contests", methods(GET=fac.contest_queue)),
+    path("faculty/contests/<str:contest_id>/resolve", methods(POST=fac.resolve_contest)),
+    path("faculty/insights", methods(GET=fac.insights)),
     path("system/reindex", methods(POST=ext.system_reindex)),
     path("auth/password/forgot", methods(POST=api.forgot_password)),
     path("auth/password/reset", methods(POST=api.reset_password)),
@@ -76,6 +84,7 @@ urlpatterns = [
     path("subjects/<str:subject_id>/quiz/attempts/<str:attempt_id>/terminate", methods(POST=api.quiz_terminate)),
     path("subjects/<str:subject_id>/quiz/attempts/<str:attempt_id>/result", methods(GET=api.quiz_result)),
     path("subjects/<str:subject_id>/quiz/attempts/<str:attempt_id>/finish", methods(POST=api.quiz_finish)),
+    path("subjects/<str:subject_id>/quiz/attempts/<str:attempt_id>/answers/<str:answer_id>/contest", methods(POST=fac.contest_answer)),
     path("subjects/<str:subject_id>/quiz/attempts/<str:attempt_id>/report.pdf", methods(GET=ext.attempt_report_pdf)),
     path("subjects/<str:subject_id>/materials/<str:document_id>", methods(GET=api.get_material, DELETE=api.delete_material)),
     path("subjects/<str:subject_id>/questions/<str:question_id>", methods(GET=api.get_question, DELETE=api.delete_question)),

@@ -10,6 +10,10 @@ import json
 import sqlite3
 import time
 
+from slice import pg
+
+from . import settings
+
 
 class SubjectError(ValueError):
     """A problem with a subject the user can be told about."""
@@ -22,10 +26,11 @@ def _clean(text: str, limit: int) -> str:
 class Repo:
     def __init__(self, db: sqlite3.Connection) -> None:
         self.db = db
+        self._pg = getattr(db, "pg", False)
 
     # ------------------------------------------------------------------ users
     def get_user(self, user_id: int) -> dict | None:
-        row = self.db.execute("SELECT id, username, cloud_consent, created_at, email, email_verified FROM users WHERE id=?",
+        row = self.db.execute("SELECT id, username, cloud_consent, created_at, email, email_verified, role FROM users WHERE id=?",
                               (user_id,)).fetchone()
         return dict(row) if row else None
 
@@ -198,6 +203,12 @@ class Repo:
         if not match or not chunk_ids:
             return []
         marks = ",".join("?" * len(chunk_ids))
+        if self._pg:
+            rows = self.db.execute(
+                "SELECT c.id FROM chunks c JOIN subjects s ON s.id = c.subject_id "
+                f"WHERE c.tsv @@ to_tsquery('english', ?) AND c.subject_id = ? AND s.user_id = ? AND c.id IN ({marks})",
+                (pg.tsquery(match), subject_id, user_id, *[int(i) for i in chunk_ids])).fetchall()
+            return [int(r[0]) for r in rows]
         rows = self.db.execute(
             "SELECT c.id FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid JOIN subjects s ON s.id = c.subject_id "
             f"WHERE chunks_fts MATCH ? AND c.subject_id = ? AND s.user_id = ? AND c.id IN ({marks})",
@@ -208,6 +219,11 @@ class Repo:
         """In how many passages of this user's subject the safe FTS expression `match` occurs."""
         if not match:
             return 0
+        if self._pg:
+            return int(self.db.execute(
+                "SELECT COUNT(*) FROM chunks c JOIN subjects s ON s.id = c.subject_id "
+                "WHERE c.tsv @@ to_tsquery('english', ?) AND c.subject_id = ? AND s.user_id = ? AND c.quarantined <= ?",
+                (pg.tsquery(match), subject_id, user_id, 0 if answers else 1)).fetchone()[0])
         return int(self.db.execute(
             "SELECT COUNT(*) FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid JOIN subjects s ON s.id = c.subject_id "
             "WHERE chunks_fts MATCH ? AND c.subject_id = ? AND s.user_id = ? AND c.quarantined <= ?",
@@ -218,6 +234,15 @@ class Repo:
         With answers=True, quarantined passages (instruction-like text) are left out."""
         if not match:
             return []
+        if self._pg:                                  # PostgreSQL full-text: ts_rank_cd, negated so lower is better like BM25
+            rows = self.db.execute(
+                "SELECT c.id, c.document_id, d.title AS doc_title, c.topic_id, c.heading_path, c.page_start, c.page_end, "
+                "c.text, c.quarantined, -ts_rank_cd(c.tsv, q) AS score "
+                "FROM chunks c CROSS JOIN to_tsquery('english', ?) q "
+                "JOIN documents d ON d.id = c.document_id JOIN subjects s ON s.id = c.subject_id "
+                "WHERE c.tsv @@ q AND c.subject_id = ? AND s.user_id = ? AND c.quarantined <= ? ORDER BY score, c.id LIMIT ?",
+                (pg.tsquery(match), subject_id, user_id, 0 if answers else 1, k)).fetchall()
+            return [dict(r) for r in rows]
         rows = self.db.execute(
             "SELECT c.id, c.document_id, d.title AS doc_title, c.topic_id, c.heading_path, c.page_start, c.page_end, "
             "c.text, c.quarantined, bm25(chunks_fts) AS score "
@@ -390,11 +415,12 @@ class Repo:
                 try:
                     self.db.execute(
                         "INSERT INTO mcq_items(subject_id, topic_id, job_id, topic_path, question, options, answer_index, explanation, "
-                        "quote, chunk_id, doc_title, page_start, page_end, heading_path, solver, model, key, created_at, difficulty) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        "quote, chunk_id, doc_title, page_start, page_end, heading_path, solver, model, key, created_at, difficulty, review, key_check) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (subject_id, it["topic_id"], job_id, it["topic_path"], it["question"], json.dumps(it["options"]),
                          it["answer_index"], it["explanation"], it["quote"], it["chunk_id"], it["doc_title"], it["page_start"],
-                         it["page_end"], it["heading_path"], it["solver"], model, it["key"], time.time(), it.get("difficulty", "medium")))
+                         it["page_end"], it["heading_path"], it["solver"], model, it["key"], time.time(), it.get("difficulty", "medium"),
+                         "pending" if settings.faculty_review() else "approved", it.get("key_check", "")))
                     stored += 1
                 except sqlite3.IntegrityError:
                     pass
@@ -408,7 +434,8 @@ class Repo:
         return stored
 
     def list_mcq(self, user_id: int, subject_id: int, topic_id: int | None = None, job_id: int | None = None) -> list[dict]:
-        sql = ("SELECT m.* FROM mcq_items m JOIN subjects s ON s.id=m.subject_id WHERE m.subject_id=? AND s.user_id=?")
+        """The officer's question bank: only questions a faculty member approved (or every one, with faculty review off)."""
+        sql = ("SELECT m.* FROM mcq_items m JOIN subjects s ON s.id=m.subject_id WHERE m.subject_id=? AND s.user_id=? AND m.review='approved'")
         args: list = [subject_id, user_id]
         if topic_id is not None:
             sql += " AND m.topic_id=?"

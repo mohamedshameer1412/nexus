@@ -48,3 +48,6 @@ NEXUS_All_Screens_Desktop_Mobile.zip
 /docs/
 /nexus_project_flow_doc
 /fort.png
+
+# server logs
+*.log

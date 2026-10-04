@@ -6,7 +6,7 @@ They are deterministic: formulas over the student's own answers (the Bayesian IR
 the roadmap, the risk and debt formulas). No agent calls a language model, so the pipeline is instant, free and repeatable.
 
   1. Evaluator  - scores the last quiz and traces every miss BACKWARDS through the prerequisite graph to the deepest weak
-                  ancestor: the root cause (ported from the Nexus evaluator_agent/graph.py find_root_cause, without networkx).
+                  ancestor: the root cause. "Weak" is Bayesian Knowledge Tracing mastery (bkt.py) below the target.
   2. Analytics  - updates the learner twin: ability (theta) and its uncertainty, change since the previous quiz, concept drift,
                   and the confidence-ability gap between how sure the student feels and what the answers show.
   3. Predictor  - future risk per topic (distance below target, slipping trend, weak foundations, deadline).
@@ -21,7 +21,7 @@ import sqlite3
 import time
 from collections import defaultdict, deque
 
-from . import career, foresight, insights, patterns, roadmap, tutor
+from . import bkt, career, foresight, insights, patterns, roadmap, tutor
 from .repo import Repo
 
 AGENTS = [
@@ -51,7 +51,8 @@ def prereq_graph(db: sqlite3.Connection, subject_id: int) -> tuple[dict[int, str
 
 def find_root_cause(parents: dict[int, list[int]], failed: int, mastery: dict[int, float | None], threshold: float) -> dict:
     """Walk backwards from a failed topic; the root cause is the weak ancestor furthest away (breadth-first, cycle-safe).
-    mastery[t] is the IRT confidence 0..1 (None = never assessed, treated as weak: an untested foundation is a suspect)."""
+    mastery[t] is the BKT probability the skill is known, 0..1 (None = never assessed, treated as weak: an untested foundation
+    is a suspect)."""
     dist = {failed: 0}
     prev: dict[int, int] = {}
     q = deque([failed])
@@ -104,7 +105,8 @@ def evaluator(db, user_id, subject_id, attempt, conf, target, names, parents) ->
     for r in rows:
         if not r["is_correct"] and r["topic_id"]:
             missed[r["topic_id"]] += 1
-    mastery = {t: (conf.get(t) or {}).get("confidence") for t in names}
+    known = bkt.topic_mastery(db, user_id, subject_id)               # BKT: P(mastered) per skill, answer by answer
+    mastery = {t: known[t]["p"] if t in known else None for t in names}
     roots: dict[int, dict] = {}
     traces = []
     for tid, n in sorted(missed.items(), key=lambda kv: -kv[1]):
@@ -112,7 +114,7 @@ def evaluator(db, user_id, subject_id, attempt, conf, target, names, parents) ->
         traces.append({"topic_id": tid, "topic": names.get(tid, "?"), "missed": n, "root_id": rc["root"], "root": names.get(rc["root"], "?"),
                        "chain": [names.get(c, "?") for c in rc["chain"]], "depth": rc["depth"]})
         r = roots.setdefault(rc["root"], {"topic_id": rc["root"], "topic": names.get(rc["root"], "?"), "explains": [], "missed": 0,
-                                          "confidence": mastery.get(rc["root"])})
+                                          "confidence": (conf.get(rc["root"]) or {}).get("confidence"), "bkt": mastery.get(rc["root"])})
         r["explains"].append(names.get(tid, "?"))
         r["missed"] += n
     ranked = sorted(roots.values(), key=lambda r: (-r["missed"], -len(r["explains"])))

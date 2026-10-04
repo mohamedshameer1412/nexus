@@ -1,7 +1,8 @@
 """NEXUS backend settings (Django).
 
 Everything configurable comes from backend/.env (see .env.example); real environment variables win.
-Database: SQLite by default (the same file the learning engine uses); DB_ENGINE=mysql switches Django to MySQL/MariaDB.
+Database: PostgreSQL with DB_ENGINE=postgresql (Django's tables and the learning engine's, one database). SQLite by default
+(the same file the learning engine uses); DB_ENGINE=mysql moves only Django's tables to MySQL/MariaDB.
 """
 from __future__ import annotations
 
@@ -77,7 +78,15 @@ TEMPLATES = [{
     ]},
 }]
 
-if os.environ.get("DB_ENGINE", "sqlite").lower() == "mysql":
+if os.environ.get("DB_ENGINE", "sqlite").lower() in ("postgres", "postgresql"):
+    from slice import pg as _pg
+    _d = _pg.dsn()
+    DATABASES = {"default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": _d["dbname"], "USER": _d["user"], "PASSWORD": _d["password"], "HOST": _d["host"], "PORT": _d["port"],
+        "CONN_MAX_AGE": 60,
+    }}
+elif os.environ.get("DB_ENGINE", "sqlite").lower() == "mysql":
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.mysql",
         "NAME": os.environ.get("DB_NAME", "nexus"),

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
-  ArrowLeft, Bell, BookOpen, Bot, ChartNoAxesColumn, ClipboardCheck, FileText, Home,
+  ArrowLeft, Bell, BookOpen, Bot, ChartNoAxesColumn, ClipboardCheck, FileText, GraduationCap, Home,
   LogOut, Map, Search, Settings, User, WifiOff, X,
 } from "lucide-react";
 import { CommandPalette } from "@/components/nexus/command-palette";
@@ -64,7 +64,7 @@ const MOBILE_NAV = [
 const TITLES = [
   ["/diagnosis/retest", "Re-test Result"], ["/diagnosis", "Root-cause Diagnosis"], ["/learn/", "Course Details"], ["/learn", "My Learning Path"], ["/competency", "Competency Profile"],
   ["/assess", "Assessment"], ["/ai-tutor", "NEXUS AI Tutor"], ["/profile", "Profile"], ["/career", "Career Path"],
-  ["/subjects", "Subjects"], ["/account", "Settings"], ["/search", "Search"], ["/saved", "Saved"],
+  ["/subjects", "Subjects"], ["/account", "Settings"], ["/search", "Search"], ["/saved", "Saved"], ["/faculty", "Faculty"],
 ];
 
 function useIs() {
@@ -85,6 +85,8 @@ function NavItem({ href, Icon, label, active, onNavigate = undefined }) {
 
 function Sidebar({ onNavigate = undefined }) {
   const is = useIs();
+  const { data: session } = useQuery({ queryKey: keys.session, queryFn: getSession, staleTime: 60_000 });
+  const faculty = session?.user?.role === "faculty";
   return (
     <nav aria-label="Main" className="flex h-full flex-col px-4 pb-5 pt-6">
       <Link href="/dashboard" onClick={onNavigate} aria-label="NEXUS home" className="mb-7 block px-2">
@@ -92,6 +94,7 @@ function Sidebar({ onNavigate = undefined }) {
       </Link>
       <ul className="space-y-1">
         {NAV.map((n) => <li key={n.href}><NavItem {...n} active={is(n.href)} onNavigate={onNavigate} /></li>)}
+        {faculty && <li><NavItem href="/faculty" Icon={GraduationCap} label="Faculty" active={is("/faculty")} onNavigate={onNavigate} /></li>}
       </ul>
       <div className="mt-auto space-y-3 pt-6">
         <NavItem href="/account" Icon={Settings} label="Settings" active={is("/account")} onNavigate={onNavigate} />
@@ -99,7 +102,7 @@ function Sidebar({ onNavigate = undefined }) {
           <Initials name={OFFICER.name} className="h-10 w-10 text-[14px]" />
           <span className="min-w-0">
             <span className="block truncate text-[14px] font-bold text-[#0B2A5B]">{OFFICER.name}</span>
-            <span className="block truncate text-[12px] text-[#5A6E8C]">Statistical Officer</span>
+            <span className="block truncate text-[12px] text-[#5A6E8C]">{faculty ? "Faculty, NSSTA" : "Statistical Officer"}</span>
           </span>
         </Link>
       </div>

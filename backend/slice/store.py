@@ -80,11 +80,30 @@ BEGIN SELECT RAISE(ABORT, 'versions is append-only: history is not editable'); E
 """
 
 
+# The same invariant on PostgreSQL (slice/pg.py): a trigger function instead of RAISE(ABORT).
+PG_TRIGGERS = """
+CREATE OR REPLACE FUNCTION versions_append_only() RETURNS trigger AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN RAISE EXCEPTION 'versions is append-only: write a new version'; END IF;
+  RAISE EXCEPTION 'versions is append-only: history is not editable';
+END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS versions_no_update ON versions;
+CREATE TRIGGER versions_no_update BEFORE UPDATE OR DELETE ON versions FOR EACH ROW EXECUTE FUNCTION versions_append_only();
+"""
+
+
 class Store:
-    """Durable run state. One file. Commit it, ship it, replay it."""
+    """Durable run state. One file (or one PostgreSQL schema). Commit it, ship it, replay it."""
 
     def __init__(self, path: str | Path = "run.db") -> None:
         self.path = str(path)
+        from . import pg
+        if pg.enabled():
+            self.db = pg.Connection(self.path)
+            if not self.db.execute("SELECT to_regclass('versions')").fetchone()[0]:
+                self.db.executescript(SCHEMA)
+                self.db.execute(PG_TRIGGERS)
+            return
         self.db = sqlite3.connect(self.path, isolation_level=None, timeout=30)      # wait up to 30 s for a lock (a big upload or a job writing) instead of failing
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -177,7 +196,7 @@ class Store:
     def bump(self, run_id: str, name: str, by: float = 1) -> float:
         self.db.execute(
             "INSERT INTO counters(run_id, name, value) VALUES (?,?,?)"
-            " ON CONFLICT(run_id, name) DO UPDATE SET value = value + excluded.value",
+            " ON CONFLICT(run_id, name) DO UPDATE SET value = counters.value + excluded.value",
             (run_id, name, by),
         )
         return self.counter(run_id, name)

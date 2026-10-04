@@ -1,12 +1,17 @@
 """Slow work (model calls) done off the request: answering questions, writing practice questions, the roadmap coach,
 reading skills out of a job description and worked examples.
 
-One worker thread: a local model on a small GPU cannot do two things at once. With STUDYHUB_QA_INLINE=1 (tests, scripts) the work
-runs inside the request instead. Framework-free: the Django views call submit_*; nothing here knows about HTTP.
+Where the work runs (submit_task):
+  * Celery + Redis when a broker answers (CELERY_BROKER_URL, default redis://127.0.0.1:6379/0): the job is queued and a Celery
+    worker runs it (`celery -A nexus_api worker --pool=solo -c 1`; one at a time, a local model on a small GPU cannot do two);
+  * otherwise one worker thread in this process, so the app keeps working without Redis;
+  * with STUDYHUB_QA_INLINE=1 (tests, scripts) inside the request.
+Framework-free: the Django views call submit_*; nothing here knows about HTTP.
 """
 from __future__ import annotations
 
 import json
+import os
 from contextlib import contextmanager
 import threading
 import time
@@ -56,14 +61,7 @@ def process_doubt(doubt_id: int, user_id: int) -> None:
 
 
 def submit_doubt(doubt_id: int, user_id: int) -> None:
-    global _worker
-    if settings.qa_inline():
-        process_doubt(doubt_id, user_id)
-        return
-    with _worker_lock:
-        if _worker is None:                                   # one at a time: a local model on a small GPU cannot do two
-            _worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qa")
-        _worker.submit(process_doubt, doubt_id, user_id)
+    submit_task(process_doubt, doubt_id, user_id)
 
 
 def process_mcq(job_id: int, user_id: int) -> None:
@@ -74,21 +72,51 @@ def process_mcq(job_id: int, user_id: int) -> None:
             tiers, notes = tiers_for(store.db, repo.get_user(user_id), "write")
             mcq.run_job(store, user_id, job_id, tiers, notes)
         except Exception as e:
-            store.db.execute("UPDATE mcq_jobs SET status='failed', reason=?, finished_at=strftime('%s','now') "
+            store.db.execute("UPDATE mcq_jobs SET status='failed', reason=?, finished_at=? "
                              "WHERE id=? AND user_id=? AND status='pending'",
-                             (f"Something went wrong while writing questions ({type(e).__name__}). Please try again.", job_id, user_id))
+                             (f"Something went wrong while writing questions ({type(e).__name__}). Please try again.", time.time(), job_id, user_id))
 
 
 def submit_task(fn, *args) -> None:
-    """Run a slow job (a model call) on the same single worker as questions and practice generation."""
+    """Run a slow job (a model call): on Celery when a broker is reachable, else on the single worker thread."""
     global _worker
     if settings.qa_inline():
         fn(*args)
+        return
+    if fn.__name__ in TASKS and celery_ready():
+        from nexus_api.celery import run_job
+        run_job.delay(fn.__name__, *args)
         return
     with _worker_lock:
         if _worker is None:
             _worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qa")
         _worker.submit(fn, *args)
+
+
+# The jobs a Celery worker may run, by name (nexus_api/celery.py). Nothing else can be queued.
+TASKS = {"process_doubt", "process_mcq", "process_coach", "process_career", "process_example"}
+_broker = {"ok": False, "at": 0.0}
+
+
+def broker_url() -> str:
+    return os.environ.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+
+
+def celery_ready() -> bool:
+    """Is a Celery broker reachable? Checked at most every 30 s. STUDYHUB_CELERY=off forces the in-process worker."""
+    if os.environ.get("STUDYHUB_CELERY", "auto").lower() in ("off", "0", "false"):
+        return False
+    now = time.time()
+    if now - _broker["at"] < 30:
+        return _broker["ok"]
+    try:
+        import redis
+        redis.Redis.from_url(broker_url(), socket_connect_timeout=0.3, socket_timeout=0.3).ping()
+        ok = True
+    except Exception:
+        ok = False
+    _broker.update(ok=ok, at=now)
+    return ok
 
 
 class _CoachOut(BaseModel):
@@ -214,11 +242,4 @@ def process_example(user_id: int, subject_id: int, iid: int) -> None:
 
 
 def submit_mcq(job_id: int, user_id: int) -> None:
-    global _worker
-    if settings.qa_inline():
-        process_mcq(job_id, user_id)
-        return
-    with _worker_lock:
-        if _worker is None:
-            _worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qa")
-        _worker.submit(process_mcq, job_id, user_id)
+    submit_task(process_mcq, job_id, user_id)

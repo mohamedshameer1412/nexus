@@ -569,6 +569,39 @@ MIGRATIONS: list[tuple[int, str]] = [
     INSERT INTO schema_version(v) VALUES (17);
     COMMIT;
     """),
+    (18, """    BEGIN;
+    -- Roles: officers learn and take quizzes; faculty review AI-drafted questions and resolve contested scores.
+    ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'officer' CHECK (role IN ('officer', 'faculty'));
+    -- Faculty review: a drafted question reaches officers only once approved (faculty.py). SymPy's recomputation of a numeric key.
+    ALTER TABLE mcq_items ADD COLUMN review TEXT NOT NULL DEFAULT 'approved' CHECK (review IN ('pending', 'approved', 'rejected'));
+    ALTER TABLE mcq_items ADD COLUMN reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE mcq_items ADD COLUMN reviewed_at REAL;
+    ALTER TABLE mcq_items ADD COLUMN review_note TEXT NOT NULL DEFAULT '';
+    ALTER TABLE mcq_items ADD COLUMN key_check TEXT NOT NULL DEFAULT '';
+    CREATE INDEX mcq_items_review ON mcq_items(review, created_at);
+    -- The officer's own rating while answering (1 guessing, 2 unsure, 3 sure) and verified re-tests on unseen questions.
+    ALTER TABLE attempt_answers ADD COLUMN self_confidence INTEGER CHECK (self_confidence BETWEEN 1 AND 3);
+    ALTER TABLE quiz_attempts ADD COLUMN verified_retest INTEGER NOT NULL DEFAULT 0 CHECK (verified_retest IN (0, 1));
+    -- "Contest a score": an officer disputes one marked answer; faculty uphold (the answer is re-marked correct) or reject.
+    CREATE TABLE score_contests (
+        id           INTEGER PRIMARY KEY,
+        user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        subject_id   INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+        attempt_id   INTEGER NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+        answer_id    INTEGER NOT NULL UNIQUE REFERENCES attempt_answers(id) ON DELETE CASCADE,
+        item_id      INTEGER NOT NULL REFERENCES mcq_items(id) ON DELETE CASCADE,
+        reason       TEXT NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'upheld', 'rejected')),
+        resolution   TEXT NOT NULL DEFAULT '',
+        resolved_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at   REAL NOT NULL,
+        resolved_at  REAL
+    );
+    CREATE INDEX score_contests_by_status ON score_contests(status, created_at);
+    CREATE INDEX score_contests_by_user ON score_contests(user_id, created_at);
+    INSERT INTO schema_version(v) VALUES (18);
+    COMMIT;
+    """),
 ]
 
 
@@ -613,26 +646,65 @@ _STEPS = {"rebuild_documents": _rebuild_documents}
 
 
 
+# PostgreSQL (slice/pg.py runs the scripts above with its DDL translation). Keyword search is a generated tsvector column with
+# a GIN index in place of the FTS5 table and its triggers; the documents CHECK is changed in place instead of a table rebuild.
+_PG_AFTER = {
+    2: "ALTER TABLE chunks ADD COLUMN tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', text)) STORED;"
+       "CREATE INDEX chunks_tsv ON chunks USING GIN (tsv);",
+}
+_PG_STEPS = {"rebuild_documents": """
+    BEGIN;
+    ALTER TABLE documents DROP CONSTRAINT documents_kind_check;
+    ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('txt', 'pdf', 'docx', 'url', 'image'));
+    ALTER TABLE documents ADD COLUMN ocr_pages INTEGER NOT NULL DEFAULT 0;
+    INSERT INTO schema_version(v) VALUES (15);
+    COMMIT;
+"""}
+# Shared by every schema in the database: case-insensitive text (SQLite's COLLATE NOCASE), ROUND on floating point and
+# SQLite's two-argument scalar MAX/MIN.
+_PG_SHARED = """
+    CREATE EXTENSION IF NOT EXISTS citext SCHEMA public;
+    CREATE OR REPLACE FUNCTION public.round(double precision, integer) RETURNS double precision
+        AS 'SELECT round($1::numeric, $2)::double precision' LANGUAGE SQL IMMUTABLE;
+    CREATE OR REPLACE FUNCTION public.max(double precision, double precision) RETURNS double precision
+        AS 'SELECT greatest($1, $2)' LANGUAGE SQL IMMUTABLE;
+    CREATE OR REPLACE FUNCTION public.min(double precision, double precision) RETURNS double precision
+        AS 'SELECT least($1, $2)' LANGUAGE SQL IMMUTABLE;
+"""
+_pg_shared_done = False
+
+
 def migrate(db: sqlite3.Connection) -> None:
+    global _pg_shared_done
+    pg = getattr(db, "pg", False)
+    if pg and not _pg_shared_done:
+        db.executescript(_PG_SHARED)
+        _pg_shared_done = True
     db.execute("CREATE TABLE IF NOT EXISTS schema_version (v INTEGER NOT NULL)")
     current = db.execute("SELECT MAX(v) FROM schema_version").fetchone()[0] or 0
     for version, script in MIGRATIONS:
         if version > current:
-            if script in _STEPS:
+            if pg:
+                db.executescript(_PG_STEPS.get(script, script))
+                if version in _PG_AFTER:
+                    db.executescript(_PG_AFTER[version])
+            elif script in _STEPS:
                 _STEPS[script](db)
             else:
                 db.executescript(script)
 
 
 def open_db(path: str | None = None) -> Store:
-    """Open (creating if needed) the StudyHub database. Returns the spine's Store; its `.db` is the connection."""
+    """Open (creating if needed) the StudyHub database: SQLite, or PostgreSQL when DB_ENGINE=postgresql. Returns the spine's
+    Store; its `.db` is the connection (sqlite3, or slice.pg's sqlite3-compatible wrapper)."""
     path = path or settings.db_path()
-    if path != ":memory:":
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
     store = Store(path)
     db = store.db
-    db.execute("PRAGMA synchronous=NORMAL")        # safe with WAL (a power cut can lose the last commit, never corrupt the file)
-    db.execute("PRAGMA temp_store=MEMORY")
-    db.execute("PRAGMA cache_size=-16000")         # 16 MB page cache per connection
+    if not getattr(db, "pg", False):
+        if path != ":memory:":
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+        db.execute("PRAGMA synchronous=NORMAL")        # safe with WAL (a power cut can lose the last commit, never corrupt the file)
+        db.execute("PRAGMA temp_store=MEMORY")
+        db.execute("PRAGMA cache_size=-16000")         # 16 MB page cache per connection
     migrate(db)
     return store

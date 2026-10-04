@@ -357,7 +357,8 @@ def test_deleting_a_document_removes_chunks_topics_index_entries_and_the_file(wo
     assert ingest.delete_document(db, alice, sid, r.document_id)
     assert (count(db, "documents"), count(db, "chunks"), count(db, "topics")) == (0, 0, 0)
     assert retrieval.search(db, alice, sid, "stack") == []
-    db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check')")      # raises if the index disagrees
+    if not getattr(db, "pg", False):                    # PostgreSQL: the tsvector is a generated column, it cannot disagree
+        db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check')")      # raises if the index disagrees
     assert not [p for p in (tmp_path / "uploads").rglob("*") if p.is_file()]
 
 
@@ -378,7 +379,8 @@ def test_deleting_a_subject_removes_its_whole_material_and_index(world):
     ingest.ingest(db, bob, bsid, "ds.txt", SAMPLE_TXT.encode())
     assert ingest.delete_subject(db, alice, sid)
     assert count(db, "documents") == 1 and count(db, "chunks") == 3
-    db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check')")
+    if not getattr(db, "pg", False):                    # PostgreSQL: the tsvector is a generated column, it cannot disagree
+        db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('integrity-check')")
     assert retrieval.search(db, bob, bsid, "stack"), "bob's copy is untouched"
 
 

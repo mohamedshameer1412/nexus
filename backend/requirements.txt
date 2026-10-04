@@ -1,10 +1,16 @@
-# NEXUS backend (Django + SQLite; MySQL/MariaDB with DB_ENGINE=mysql). Python 3.11+.
+# NEXUS backend (Django + PostgreSQL; SQLite with DB_ENGINE=sqlite). Python 3.11+.
 pydantic>=2.7            # typed contracts at every boundary
 httpx>=0.27              # model calls (Ollama, OpenRouter)
-sqlite-vec>=0.1.9        # vector distance inside SQLite (semantic search)
-fastembed>=0.4           # local embeddings (BAAI/bge-small-en-v1.5): no API key, no rate limit
-django>=5.2               # the web framework: API views, middleware, admin, migrations
-pymysql>=1.1              # MySQL/MariaDB driver (only used with DB_ENGINE=mysql)
+django>=5.2              # the web framework: API views, middleware, admin, migrations
+psycopg2-binary>=2.9     # PostgreSQL driver (Django and the learning engine)
+sentence-transformers>=3.0  # Sentence-BERT embeddings (all-MiniLM-L6-v2) for semantic search and source-finding
+faiss-cpu>=1.8           # FAISS vector index over a subject's passages
+fastembed>=0.4           # fallback embeddings when sentence-transformers is not installed
+sympy>=1.13              # recomputes numeric answer keys of generated questions
+celery>=5.4              # background question generation and model calls
+redis>=5.0               # Celery's broker
+pymysql>=1.1             # MySQL/MariaDB driver (only used with DB_ENGINE=mysql)
+sqlite-vec>=0.1.9        # only for slice/retrieve.py (the original kit's SQLite vector demo)
 pypdf>=5.0               # read uploaded PDFs
 python-docx>=1.1         # read uploaded Word documents
 pypdfium2>=4.30          # render scanned PDF pages for OCR (no poppler needed)

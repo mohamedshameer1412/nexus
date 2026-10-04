@@ -106,14 +106,16 @@ class Ctx:
         return self.user["id"]
 
 
-def guard(request: HttpRequest, db, *, mutate: bool = False, subject_id: str | None = None):
-    """(Ctx, None) or (None, error response). Checks sign-in, CSRF (for mutations) and subject ownership."""
+def guard(request: HttpRequest, db, *, mutate: bool = False, subject_id: str | None = None, role: str | None = None):
+    """(Ctx, None) or (None, error response). Checks sign-in, CSRF (for mutations), the role (role="faculty") and subject ownership."""
     si = signed_in(request, db)
     if si is None:
         return None, err(401, "unauthenticated", "Please sign in.")
     user, session = si
     if mutate and not auth.same_token(request.headers.get("x-csrf-token"), session.csrf):
         return None, err(403, "csrf", "The request was refused. Reload the page and try again.")
+    if role is not None and (user.get("role") or "officer") != role:
+        return None, err(403, "forbidden", f"This needs a {role} account.")
     subject = None
     if subject_id is not None:
         subject = Repo(db).get_subject(user["id"], _int(subject_id) or -1)
