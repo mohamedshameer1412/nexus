@@ -11,12 +11,12 @@ import { api, clearOfflineData, fetchSession } from "@/lib/api";
 import { keys } from "@/lib/queries";
 import { cn, friendlyError } from "@/lib/utils";
 import {
-
-// Demo sign-in hint (officer account only). Shown only in builds made with NEXT_PUBLIC_DEMO_MODE=1, never by default.
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
   Alert, Button, Checkbox, Segmented,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/primitives";
+
+// Demo sign-in hint (officer account only). Shown only in builds made with NEXT_PUBLIC_DEMO_MODE=1, never by default.
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
 
 // ------------------------------------------------------------------------------------------------ fields
 
