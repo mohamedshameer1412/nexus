@@ -8,7 +8,7 @@ Creates the user  demo@nexus.local / nexus-demo-2026  with:
     six quizzes spread over three weeks (improving), a study plan, self-ratings, flashcard reviews, notes, questions asked,
   * "Computer Networks": the sample Word notes and a first quiz,
   * a career goal from a short job description,
-  * a faculty account  faculty@nexus.local / nexus-faculty-2026  with AI-drafted questions waiting for review (one with a key
+  * a faculty account  faculty@nexus.local  (password: NEXUS_FACULTY_PASSWORD, or random and printed) with AI-drafted questions waiting for review (one with a key
     SymPy recomputed), an open contest from the demo officer, and verified intervention outcomes for the NSSTA insights.
 Practice questions are written here by hand (no model is needed); everything else goes through the same API the app uses.
 Run it against a DEMO database only (STUDYHUB_DB): it rewrites timestamps of the demo user's quizzes to spread them over time.
@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import secrets
 import sys
 import time
 from pathlib import Path
@@ -30,7 +31,10 @@ from studyhub.db import open_db  # noqa: E402
 
 API = os.environ.get("NEXUS_API", "http://127.0.0.1:8100") + "/api/v1"
 EMAIL, PASSWORD, USER = "demo@nexus.local", "nexus-demo-2026", "demo"
-F_EMAIL, F_PASSWORD, F_USER = "faculty@nexus.local", "nexus-faculty-2026", "faculty"
+# Faculty can approve questions and resolve contests for everyone, so its password is never a published default:
+# NEXUS_FACULTY_PASSWORD, or a random one printed once at the end of the run.
+F_EMAIL, F_USER = "faculty@nexus.local", "faculty"
+F_PASSWORD = os.environ.get("NEXUS_FACULTY_PASSWORD") or secrets.token_urlsafe(12)
 # AI drafts waiting for faculty review: (topic, question, options, answer, explanation, quote, SymPy record)
 PENDING = [
     ("Arrays", "An array of 8 elements doubles when full; how many slots does it have after one more append?", ["9", "12", "16", "24"], 2,

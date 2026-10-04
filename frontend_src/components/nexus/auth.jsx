@@ -11,6 +11,9 @@ import { api, clearOfflineData, fetchSession } from "@/lib/api";
 import { keys } from "@/lib/queries";
 import { cn, friendlyError } from "@/lib/utils";
 import {
+
+// Demo sign-in hint (officer account only). Shown only in builds made with NEXT_PUBLIC_DEMO_MODE=1, never by default.
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
   Alert, Button, Checkbox, Segmented,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/primitives";
@@ -230,14 +233,12 @@ export function AuthScreen({ initial = "login" }) {
         <motion.div key={mode} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
           <h1 className="text-center text-[26px] font-bold text-[#0B2A5B]">{isLogin ? "Welcome Back" : "Create your account"}</h1>
           <p className="mt-1 text-center text-[14.5px] text-[#5A6E8C]">{isLogin ? "Sign in to continue your learning journey" : "It takes less than a minute."}</p>
-          {isLogin && (
+          {isLogin && DEMO_MODE && (
             <Alert tone="info" icon={KeyRound} className="mt-5 items-center">
-              {[["Officer", "demo@nexus.local", "nexus-demo-2026"], ["Faculty", "faculty@nexus.local", "nexus-faculty-2026"]].map(([who, email, pw]) => (
-                <div key={who} className="flex items-center justify-between gap-3 py-0.5">
-                  <p className="min-w-0">{who} demo:<br /><b className="font-semibold">{email}</b> / <b className="font-semibold">{pw}</b></p>
-                  <Button type="button" variant="secondary" size="sm" className="h-8 shrink-0 rounded-lg" onClick={() => fillDemo(email, pw)}>Use this</Button>
-                </div>
-              ))}
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0">Officer demo:<br /><b className="font-semibold">demo@nexus.local</b> / <b className="font-semibold">nexus-demo-2026</b></p>
+                <Button type="button" variant="secondary" size="sm" className="h-8 shrink-0 rounded-lg" onClick={() => fillDemo("demo@nexus.local", "nexus-demo-2026")}>Use this</Button>
+              </div>
             </Alert>
           )}
           <form className="mt-6 space-y-4" onSubmit={submit} noValidate>

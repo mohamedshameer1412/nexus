@@ -107,7 +107,9 @@ python scripts/seed_demo.py
 This creates two demo accounts. These are public demo credentials: do not reuse them.
 
 - Officer `demo@nexus.local` / `nexus-demo-2026`: two subjects, practice questions, quiz history, notes, a career goal and one open contest.
-- Faculty `faculty@nexus.local` / `nexus-faculty-2026`: AI-drafted questions waiting for review (one with a SymPy-checked key) and intervention outcomes for the insights page.
+- Faculty `faculty@nexus.local`: AI-drafted questions waiting for review (one with a SymPy-checked key) and intervention outcomes for the insights page. Faculty can act on every officer's questions and scores, so its password is never a published default: set `NEXUS_FACULTY_PASSWORD` before seeding, or the seeder prints a random one.
+
+The login page shows the officer demo account only in a frontend built with `NEXT_PUBLIC_DEMO_MODE=1` (for example in `frontend_src/.env.local`).
 
 ### 3. Frontend
 
