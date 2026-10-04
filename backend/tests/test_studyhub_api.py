@@ -4,9 +4,9 @@ from __future__ import annotations
 import json
 
 import pytest
-from fastapi.testclient import TestClient
+from django_client import TestClient
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub_files import SAMPLE_TXT
 from test_studyhub_mcq_web import three_topic_model
 from test_studyhub_qa import GOOD, Scripted, tier
@@ -28,7 +28,7 @@ class Api:
     """A signed-out or signed-in browser talking to the API."""
 
     def __init__(self):
-        self.c = TestClient(appmod.app, follow_redirects=False)
+        self.c = TestClient(follow_redirects=False)
         self.csrf = self.c.get(f"{API}/session").json()["csrf"]
 
     def register(self, name="alice", pw=PW):
@@ -369,14 +369,22 @@ def test_api_pages_carry_the_security_headers(env):
     assert r.headers["cache-control"] == "no-store"
 
 
-def test_the_old_html_pages_are_off_by_default_and_the_api_still_works(env, monkeypatch):  # noqa: F811
-    monkeypatch.setenv("STUDYHUB_LEGACY_UI", "0")
+def test_non_api_paths_go_to_the_web_app_and_the_api_still_works(env, monkeypatch):  # noqa: F811
     monkeypatch.setenv("NEXUS_PUBLIC_URL", "http://localhost:3000")
-    c = TestClient(appmod.app, follow_redirects=False)
+    c = TestClient(follow_redirects=False)
     for path in ("/", "/login", "/subjects/1", "/subjects/1/quiz"):
         r = c.get(path)
         assert r.status_code == 302 and r.headers["location"] == "http://localhost:3000/", path      # sent to the web app
     assert c.post("/login", data={"username": "a", "password": "b"}).status_code == 404               # no form posts to the old pages
     assert c.get("/healthz").status_code == 200 and c.get(f"{API}/session").status_code == 200        # the API and the health check are untouched
-    monkeypatch.setenv("STUDYHUB_LEGACY_UI", "1")
-    assert c.get("/login").status_code == 200                                                          # one setting brings them back
+
+
+def test_oversize_uploads_are_refused_early_by_size_and_late_by_content(env, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("STUDYHUB_MAX_UPLOAD_BYTES", "4000")
+    a = signed_in()
+    sid = a.subject()
+    early = a.upload(sid, "big.txt", b"x" * 200_000)                        # declared size far over the limit: refused before reading
+    assert is_error(early, 413, "too_large")
+    late = a.upload(sid, "big.txt", ("word " * 2000).encode())              # 10 KB: within the header slack, over the limit
+    assert late.status_code == 400 and late.json()["error"]["code"] == "upload_refused"
+    assert a.req("GET", f"/subjects/{sid}/materials").json()["documents"] == []

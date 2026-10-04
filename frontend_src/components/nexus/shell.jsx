@@ -62,7 +62,7 @@ const MOBILE_NAV = [
 
 // Mobile header titles, longest prefix first.
 const TITLES = [
-  ["/learn/", "Course Details"], ["/learn", "My Learning Path"], ["/competency", "Competency Profile"],
+  ["/diagnosis/retest", "Re-test Result"], ["/diagnosis", "Root-cause Diagnosis"], ["/learn/", "Course Details"], ["/learn", "My Learning Path"], ["/competency", "Competency Profile"],
   ["/assess", "Assessment"], ["/ai-tutor", "NEXUS AI Tutor"], ["/profile", "Profile"], ["/career", "Career Path"],
   ["/subjects", "Subjects"], ["/account", "Settings"], ["/search", "Search"], ["/saved", "Saved"],
 ];

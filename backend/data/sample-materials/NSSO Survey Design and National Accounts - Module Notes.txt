@@ -1,0 +1,31 @@
+NSSO Survey Design and National Accounts — Module Notes (demo training material)
+
+1. Sampling design in NSS household surveys
+
+The National Sample Survey uses a stratified multi-stage sampling design. In rural areas the first-stage units are villages as defined in the Population Census; in urban areas they are Urban Frame Survey blocks. Households are the ultimate-stage units.
+
+Stratification is done separately for rural and urban sectors within each district. Within a stratum, first-stage units are selected by probability proportional to size with replacement, where size is the population recorded in the latest census. At the second stage, households are selected by simple random sampling without replacement after arranging them by a second-stage stratification variable such as land possessed or monthly consumer expenditure.
+
+A sampling weight, also called a multiplier, is attached to every sampled household. The weight is the reciprocal of the probability of selection, adjusted for non-response. Estimates of totals are produced by multiplying each household value by its weight and summing over the sample. Ignoring the weights produces biased estimates, because households did not all have the same chance of selection.
+
+2. Non-sampling error and its control
+
+Non-sampling error arises at every stage other than selection: incomplete coverage of the frame, refusal or absence of the respondent, recall error in reported consumption, errors in recording, and errors in data entry. Non-sampling error does not reduce as the sample grows, which is why a large but poorly executed survey can be worse than a small well-supervised one.
+
+Control measures include a well-maintained sampling frame, careful schedule design, training of field investigators, supervision and re-interview of a sub-sample, consistency checks built into the data entry application, and imputation rules that are documented and published.
+
+3. National accounts: basic aggregates
+
+Gross Domestic Product measures the value of goods and services produced within the domestic territory of a country in an accounting period. Gross Value Added is output less intermediate consumption; GDP at market prices equals GVA at basic prices plus product taxes less product subsidies.
+
+Net Domestic Product is GDP less consumption of fixed capital, which is the decline in the value of fixed assets through normal wear and tear and obsolescence. Gross National Income is GDP plus net primary income from the rest of the world.
+
+Constant price estimates value the current period's quantities at the prices of a chosen base year, so that changes reflect volume rather than price. Real growth is computed from constant price series. The deflator is the ratio of the current price estimate to the constant price estimate, expressed as an index.
+
+4. Base year revision
+
+The base year of national accounts is revised periodically so that the structure of the economy used in the estimates reflects current reality. A revision changes the weighting pattern, the data sources used for each activity, and sometimes the methodology. Back-casting is the exercise of recomputing earlier years on the new base so that a consistent long series is available to users.
+
+5. Dissemination and metadata
+
+Every published estimate is accompanied by metadata describing the concepts, the reference period, the coverage, the method of estimation, the sample size achieved, and the sampling error where it can be computed. Users cannot interpret an estimate correctly without this information, which is why metadata is treated as part of the release and not as an optional annexure.

@@ -7,13 +7,15 @@ from __future__ import annotations
 
 import os
 import secrets
+import sys
 from pathlib import Path
 
 from slice.config import load_env
 from studyhub import settings as engine
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_env(BASE_DIR / ".env")
+if "pytest" not in sys.modules:          # tests must never pick up a real mail account or key from .env
+    load_env(BASE_DIR / ".env")
 
 
 def _flag(name: str, default: str = "0") -> bool:
@@ -57,6 +59,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",              # admin forms; API views check X-CSRF-Token themselves
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.audit.AuditMiddleware",
 ]
 
@@ -110,6 +113,11 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = engine.cookie_secure()
 CSRF_COOKIE_SECURE = engine.cookie_secure()
 X_FRAME_OPTIONS = "DENY"
+# Served over HTTPS (STUDYHUB_COOKIE_SECURE=1): force HTTPS and tell browsers to keep using it.
+if engine.cookie_secure():
+    SECURE_SSL_REDIRECT = _flag("DJANGO_SSL_REDIRECT", "1")       # 0 when a proxy in front already redirects
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "31536000"))
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Outgoing mail (the engine's mailer reads the same EMAIL_* variables).

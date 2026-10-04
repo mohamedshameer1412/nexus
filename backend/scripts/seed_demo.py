@@ -1,6 +1,6 @@
 """Seed a demo account with realistic study history, through the running API (so every rule applies) plus a few direct inserts.
 
-    python -m uvicorn studyhub.web.app:app --port 8100        # in one terminal
+    python manage.py runserver 8100                            # in one terminal
     python scripts/seed_demo.py                              # in another  (NEXUS_API=http://127.0.0.1:8100)
 
 Creates the user  demo@nexus.local / nexus-demo-2026  with:

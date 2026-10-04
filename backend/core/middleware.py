@@ -50,7 +50,8 @@ class ApiMiddleware:
                 response["Content-Security-Policy"] = "frame-ancestors 'self'"
                 response["X-Frame-Options"] = "SAMEORIGIN"
             else:
-                response["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+                response["Content-Security-Policy"] = ("default-src 'self'; style-src 'unsafe-inline'; script-src 'none'; form-action 'self'; "
+                                                   "frame-ancestors 'none'; base-uri 'none'")
                 response["X-Frame-Options"] = "DENY"
             response["Cache-Control"] = "no-store"
         response["X-Content-Type-Options"] = "nosniff"

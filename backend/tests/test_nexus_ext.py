@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import agents, extract, ocr, retrieval, semantic
 from studyhub.db import open_db
 from test_studyhub_api import is_error, signed_in  # noqa: F401

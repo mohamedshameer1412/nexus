@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from types import SimpleNamespace
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import mcq, roadmap
 from test_studyhub_api import is_error, quiet, signed_in  # noqa: F401
 from test_studyhub_api_quiz import answer_all  # noqa: F401

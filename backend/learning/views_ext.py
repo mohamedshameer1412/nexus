@@ -145,7 +145,7 @@ def subject_report_xlsx(request, subject_id):
 
 @api_view(status=200)
 def attempt_report_pdf(request, subject_id, attempt_id):
-    result = base.quiz_result(request, subject_id, attempt_id)
+    result = base.quiz_result.__wrapped__(request, subject_id, attempt_id)   # the view's data, before api_view turns it into JSON
     if not isinstance(result, dict):
         return result                                          # the same 401/404/409 as the result page
     with _db() as db:

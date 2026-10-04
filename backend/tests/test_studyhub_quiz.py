@@ -9,9 +9,10 @@ import json
 import time
 
 import pytest
-from fastapi.testclient import TestClient
+from django_client import TestClient
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
+from studyhub import quiz_flow
 from studyhub import auth
 from studyhub.db import open_db
 from studyhub.repo import Repo
@@ -469,28 +470,3 @@ def test_expire_stale_attempts(isolated):  # noqa: F811
 
 # ── HTTP smoke tests (unauthenticated → redirect) ─────────────────────────────
 
-def test_quiz_home_redirects_if_not_signed_in(isolated):  # noqa: F811
-    store, uid, sid, tid, item_id = _fresh()
-    store.close()
-    client = TestClient(appmod.app, raise_server_exceptions=True)
-    r = client.get(f"/subjects/{sid}/quiz", follow_redirects=False)
-    assert r.status_code == 303
-    assert "/login" in r.headers["location"]
-
-
-def test_progress_page_redirects_if_not_signed_in(isolated):  # noqa: F811
-    store, uid, sid, tid, item_id = _fresh()
-    store.close()
-    client = TestClient(appmod.app, raise_server_exceptions=True)
-    r = client.get(f"/subjects/{sid}/progress", follow_redirects=False)
-    assert r.status_code == 303
-    assert "/login" in r.headers["location"]
-
-
-def test_quiz_result_not_found_for_unknown_id(isolated):  # noqa: F811
-    store, uid, sid, tid, item_id = _fresh()
-    store.close()
-    client = TestClient(appmod.app, raise_server_exceptions=True)
-    r = client.get(f"/subjects/{sid}/quiz/result/99999", follow_redirects=False)
-    # Not signed in → redirect to login
-    assert r.status_code in (303, 200)

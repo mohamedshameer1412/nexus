@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import cards
 from test_studyhub_api import API, PW, Api, is_error, quiet, signed_in, use_models  # noqa: F401
 from test_studyhub_api_quiz import answer_all, seed, start  # noqa: F401
@@ -32,7 +32,6 @@ def test_changing_the_password_needs_the_current_one_and_signs_other_devices_out
 
 
 def test_the_data_export_has_only_the_users_own_data(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     assert is_error(Api().req("GET", "/account/export"), 401, "unauthenticated")
     a = signed_in("alice")
     sid = a.subject("Mine")
@@ -62,7 +61,6 @@ def test_deleting_the_account_needs_the_password_and_the_word_and_removes_everyt
 
 
 def test_saved_answers_belong_to_their_owner(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     monkeypatch.setenv("STUDYHUB_QA_INLINE", "1")
     use_models(monkeypatch)                                                     # no model: never reach out to a real one in a test
     a = signed_in("alice")
@@ -93,7 +91,6 @@ def test_spaced_repetition_schedules_later_when_known_and_soon_when_missed():
 
 
 def test_flashcards_come_back_by_their_schedule_and_only_for_the_owner(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     a = signed_in("alice")
     sid = a.subject("Math")
     seed(sid)
@@ -126,7 +123,6 @@ def test_search_across_subjects_finds_only_the_users_own_passages(env, monkeypat
 
 
 def test_practice_questions_export_csv_and_a_quiz_can_be_ended_early(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     a = signed_in("alice")
     sid = a.subject("Math")
     seed(sid)
@@ -141,7 +137,6 @@ def test_practice_questions_export_csv_and_a_quiz_can_be_ended_early(env, monkey
 
 
 def test_the_dashboard_counts_a_study_streak_and_todays_answers(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     a = signed_in("alice")
     sid = a.subject("Math")
     seed(sid)

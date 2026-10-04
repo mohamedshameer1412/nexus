@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import quiz_agents
 from studyhub.db import open_db
 from test_studyhub_api import Api, is_error, quiet, signed_in  # noqa: F401
@@ -27,7 +27,6 @@ def seed(sid: int, n: int = 3) -> int:
 
 
 def world(env, monkeypatch, provider=None):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: provider)
     a = signed_in("alice")
     sid = a.subject("Math")
     seed(sid)
@@ -81,7 +80,6 @@ def test_bob_cannot_see_or_touch_alices_quiz_or_progress(env, monkeypatch):  # n
 
 
 def test_quiz_needs_questions_and_a_running_quiz_never_reveals_answers(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     carol = signed_in("carol")
     empty = carol.subject("Empty")
     assert is_error(carol.req("POST", f"/subjects/{empty}/quiz/attempts", json={}), 400, "no_questions")
@@ -140,7 +138,6 @@ def test_a_quiz_is_multiple_choice_only_even_when_a_model_is_available(env, monk
 
 
 def test_progress_lists_topics_with_material_and_prerequisites_are_validated(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     a = signed_in()
     sid = a.subject("Data Structures")
     assert a.upload(sid).status_code == 201

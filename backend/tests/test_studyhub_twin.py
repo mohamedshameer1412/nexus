@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from types import SimpleNamespace
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import db as studydb
 from studyhub import insights, mcq, patterns, tutor
 from test_studyhub_api import is_error, signed_in  # noqa: F401

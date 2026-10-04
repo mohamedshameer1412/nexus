@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import citations, ingest, qa, retrieval, screen
 from studyhub.citations import Answer, check_explanation, verify
 from studyhub.repo import Repo
@@ -243,49 +243,3 @@ def test_internal_passage_labels_in_an_explanation_are_replaced_by_the_section_n
     assert qa.name_passages("P1 says pop removes the top. P2 agrees, but P7 does not exist.", sources) ==         'The "Stacks" passage says pop removes the top. The "notes" passage agrees, but P7 does not exist.'
 
 
-def test_the_answer_page_has_answer_sources_evidence_explanation_and_verification(env, monkeypatch):
-    good = with_explanation("The quote says the enqueue operation adds an element at the rear. So enqueue puts new items at the back.")
-    use_models(monkeypatch, tier("local", Scripted(good)))
-    c, sid = alice_ready()
-    html = c.get(web_ask(c, sid).headers["location"]).text
-    page = visible(html)
-    heads = re.findall(r"<h2>(.*?)</h2>", html)
-    assert heads == ["Answer", "Sources and evidence", "Explanation, step by step", "Verification"]
-    assert "ds" in page and "section: Data Structures › Queues" in page
-    assert "<blockquote>The enqueue operation adds an element at the rear</blockquote>" in html
-    assert "The model's own reasoning" in page and "not verified word for word" in page
-    assert "Every quote (1) was found word for word in your material." in page
-    assert 'Each statement mentions "enqueue"' in page and "passages that read like instructions to an AI were not shown" in page
-
-
-def test_the_explanation_section_is_absent_when_none_was_kept(env, monkeypatch):
-    use_models(monkeypatch, tier("local", Scripted(GOOD)))
-    c, sid = alice_ready()
-    html = c.get(web_ask(c, sid).headers["location"]).text
-    assert "Explanation, step by step" not in html and "the model gave no explanation" in visible(html)
-
-
-def test_a_conflict_is_shown_as_a_disagreement_with_both_quotes(env, monkeypatch):
-    use_models(monkeypatch, tier("local", ConflictModel()))
-    c, sid = alice_ready()
-    html = c.get(web_ask(c, sid, CONFLICT_Q).headers["location"]).text
-    page = visible(html)
-    assert "Your materials disagree" in page and "does not pick a winner" in page
-    assert html.count("<blockquote>") == 2
-
-
-def test_an_uploaded_file_with_instruction_like_text_is_flagged_on_its_page_and_in_the_list(env):
-    c, sid = alice_ready()
-    loc = upload(c, sid, "hashing.txt", INJECTED).headers["location"]
-    for html in (c.get(loc).text, c.get(f"/subjects/{sid}").text):
-        assert "read like instructions to an AI" in visible(html)
-    assert "Not used for answers" in visible(c.get(loc).text)
-
-
-def test_the_planted_claim_is_not_answered_through_the_web_either(env, monkeypatch):
-    model = Scripted()
-    use_models(monkeypatch, tier("local", model))
-    c, sid = alice_ready()
-    upload(c, sid, "hashing.txt", INJECTED)
-    page = visible(c.get(web_ask(c, sid, "How many steps do hash tables take?").headers["location"]).text)
-    assert model.calls == 0 and "Not answered" in page and "42 steps" not in page.split("Closest passages")[0]

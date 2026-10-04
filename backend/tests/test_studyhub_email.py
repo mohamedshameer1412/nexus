@@ -7,7 +7,7 @@ import smtplib
 import pytest
 
 from studyhub import digest, mail_templates, mailer, otp
-from studyhub.web import api as apimod
+from learning import views_api as apimod
 from test_studyhub_api import API, PW, Api, is_error, quiet, signed_in  # noqa: F401
 from test_studyhub_web import env  # noqa: F401
 
@@ -177,10 +177,10 @@ def test_a_new_code_cancels_the_old_one_and_the_code_is_never_stored(env, outbox
 
 
 def test_the_client_address_behind_our_proxy_is_the_one_the_proxy_added():
-    class Req:
-        def __init__(self, host, xff=None):
-            self.client = type("C", (), {"host": host})()
-            self.headers = {"x-forwarded-for": xff} if xff else {}
+    from django.test import RequestFactory
+
+    def Req(host, xff=None):  # noqa: N802
+        return RequestFactory().get("/", REMOTE_ADDR=host, **({"HTTP_X_FORWARDED_FOR": xff} if xff else {}))
     assert apimod._ip(Req("127.0.0.1", "6.6.6.6, 203.0.113.9")) == "203.0.113.9"          # the forged first entry is ignored
     assert apimod._ip(Req("127.0.0.1")) == "127.0.0.1"
     assert apimod._ip(Req("198.51.100.4", "6.6.6.6")) == "198.51.100.4"                   # not our proxy: the header is not trusted

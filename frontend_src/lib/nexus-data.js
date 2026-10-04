@@ -368,3 +368,44 @@ export const TUTOR_REPLIES = {
   "Give Example": "**PLFS example**\n- *Correlation:* district literacy rate and female labour force participation, r = 0.48.\n- *Regression:* LFPR = 12.1 + 0.31 × literacy, so each extra point of literacy goes with 0.31 points higher LFPR.\n- Neither shows that literacy *causes* participation.",
   "Practice Question": "**Practice question**\nStudy time and exam scores have r = 0.85. Which is the most accurate interpretation?\n- A) Studying more *causes* higher scores\n- B) There is a strong positive linear relationship\n- C) Study time explains 85% of the variance\n- D) Both A and C\n\n**Answer: B.** Correlation is not causation, and R² = 0.72, not 0.85.",
 };
+
+// ─── Root-cause diagnosis and re-test (demo data; the engine's evaluator and interventions produce the same shapes) ───
+
+export const DIAGNOSIS = {
+  assessment: { title: "Regression Analysis", date: "22 Sep 2026", correct: 2, total: 6 },
+  // Observed topic first, root cause last: each depends on the next.
+  chain: [
+    { topic: "Regression Analysis", score: 33, note: "Where the errors showed" },
+    { topic: "Correlation", score: 42, note: "Needed for regression" },
+    { topic: "Measures of Dispersion", score: 38, note: "Needed for correlation", root: true },
+  ],
+  evidence: [
+    "All 4 regression misses needed standard deviation",
+    "Dispersion: 3 of 8 correct across 2 assessments",
+  ],
+  priority: {
+    score: 92,
+    factors: [
+      { label: "Gap severity", value: "High · 38% vs 70% target" },
+      { label: "Unlocks", value: "3 dependent topics" },
+      { label: "Role need", value: "Required for Grade-I" },
+    ],
+  },
+  confidenceGap: { rated: "Confident", tested: 38 },
+  action: { title: "Descriptive Statistics: Measures of Dispersion", source: "igot", minutes: 22, retest: "3 Oct" },
+};
+
+export const RETEST = {
+  topic: "Measures of Dispersion",
+  date: "3 Oct 2026",
+  before: { score: 38, date: "22 Sep" },
+  after: { score: 81, date: "3 Oct" },
+  target: 70,
+  downstream: [
+    { topic: "Correlation", before: 42, after: 64 },
+    { topic: "Regression Analysis", before: 33, after: 58 },
+  ],
+  competency: { domain: "Statistics & Data Analysis", before: 75, after: 79, overallBefore: 68, overallAfter: 71 },
+  loop: ["Observe", "Diagnose", "Intervene", "Verify", "Replan"],
+  next: { title: "Regression practice set", detail: "6 AI-written questions from your notes", retest: "10 Oct" },
+};

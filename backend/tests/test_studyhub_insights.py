@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import time
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub import insights
 from studyhub.db import open_db
 from test_studyhub_api import is_error, quiet, signed_in  # noqa: F401
@@ -27,7 +27,6 @@ def seed_two_topics(a, sid: int):
 
 
 def world(env, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     a = signed_in("alice")
     sid = a.subject("Math")
     ids, names = seed_two_topics(a, sid)

@@ -1,7 +1,7 @@
 """The original-file viewer endpoint and the notes API: ownership, safe headers, notes built from stored answers."""
 from __future__ import annotations
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
 from studyhub_files import SAMPLE_TXT, make_pdf
 from test_studyhub_api import Api, is_error, quiet, signed_in, use_models  # noqa: F401
 from test_studyhub_web import env  # noqa: F401

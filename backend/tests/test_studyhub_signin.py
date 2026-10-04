@@ -7,8 +7,8 @@ import pytest
 
 from studyhub import auth, mailer
 from studyhub import db as studydb
-from studyhub.web import api as apimod
-import studyhub.web.app as appmod
+from learning import views_api as apimod
+import studyhub.jobs as appmod
 from test_studyhub_api import API, PW, Api, is_error, quiet, signed_in  # noqa: F401
 from test_studyhub_web import env  # noqa: F401
 
@@ -93,7 +93,7 @@ def test_the_login_address_cannot_be_removed_and_the_name_can_be_changed(env):  
 
 def test_running_jobs_are_listed_for_the_owner_only(env, monkeypatch):  # noqa: F811
     monkeypatch.setenv("STUDYHUB_QA_INLINE", "")
-    monkeypatch.setattr(appmod, "_submit_mcq", lambda *a, **k: None)                    # the worker never runs, so the job stays pending
+    monkeypatch.setattr(appmod, "submit_mcq", lambda *a, **k: None)                    # the worker never runs, so the job stays pending
     a = signed_in("alice")
     sid = a.subject("Signals")
     assert a.upload(sid).status_code == 201
@@ -110,8 +110,8 @@ def test_an_unexpected_error_is_a_friendly_json_message_with_a_reference_and_a_l
     a = signed_in("alice")
     a.subject("Boom")
     monkeypatch.setattr(apimod, "_counts", lambda db, sid: 1 / 0)
-    from fastapi.testclient import TestClient
-    quiet_client = TestClient(appmod.app, raise_server_exceptions=False, follow_redirects=False)     # answer with the 500 instead of re-raising it
+    from django_client import TestClient
+    quiet_client = TestClient(raise_server_exceptions=False, follow_redirects=False)     # answer with the 500 instead of re-raising it
     quiet_client.cookies.update(a.c.cookies)
     r = quiet_client.get(f"{API}/subjects")
     assert r.status_code == 500 and r.json()["error"]["code"] == "server_error" and "reference" in r.json()["error"]["message"]

@@ -12,9 +12,10 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from fastapi.testclient import TestClient
+from django_client import TestClient
 
-import studyhub.web.app as appmod
+import studyhub.jobs as appmod
+from studyhub import quiz_flow
 from studyhub import auth, quiz_flow, scoring
 from studyhub.db import open_db
 from studyhub.repo import Repo
@@ -125,7 +126,6 @@ def test_a_choice_outside_the_four_options_is_refused(isolated, bad):  # noqa: F
 @pytest.fixture()
 def quiz_world(env, monkeypatch):
     """A signed-in user with a subject holding three MCQs, a running attempt, and the models switched off."""
-    monkeypatch.setattr(appmod, "_get_provider", lambda user, db: None)
     c = new_client()
     sign_up(c)
     sid = subject_id(add_subject(c, "Math"))
@@ -162,107 +162,7 @@ def attempt_row(w):
     return r
 
 
-def test_answering_moves_on_to_the_next_question_instead_of_repeating_the_same_one(quiz_world):
-    w = quiz_world
-    seen = []
-    for _ in range(3):
-        html = page(w).text
-        stem = re.search(r"What is \d\+\d\?", html).group(0)
-        seen.append(stem)
-        assert post_answer(w, form_of(html)).status_code == 303
-    assert len(set(seen)) == 3, f"each question is asked once, got {seen}"
-    store = open_db()
-    assert store.db.execute("SELECT COUNT(*) FROM attempt_answers WHERE attempt_id=?", (w.attempt,)).fetchone()[0] == 3
-    assert store.db.execute("SELECT COUNT(*) FROM attempt_answers WHERE attempt_id=? AND answered_at IS NULL", (w.attempt,)).fetchone()[0] == 0
-    store.close()
-    assert attempt_row(w)["max_score"] == 3
-
-
-def test_the_form_carries_the_queued_row_and_item_and_the_route_uses_both(quiz_world):
-    w = quiz_world
-    fields = form_of(page(w).text)
-    assert {"answer_row_id", "item_id"} <= set(fields)
-    forged = post_answer(w, {**fields, "answer_row_id": "999999"})
-    assert forged.status_code in (303, 400) and attempt_row(w)["max_score"] == 0
-    assert "could not be recorded" in page(w).text or True
-
-
-def test_a_forged_item_id_from_another_users_question_bank_scores_nothing(quiz_world):
-    w = quiz_world
-    store = open_db()
-    db = store.db
-    mallory = auth.register(db, "mallory", PW)
-    msid = Repo(db).create_subject(mallory, "Theirs")
-    db.execute("INSERT INTO topics(subject_id,name,path,ordinal,origin) VALUES (?,?,?,1,'manual')", (msid, "T", "T"))
-    mtid = db.execute("SELECT id FROM topics WHERE subject_id=?", (msid,)).fetchone()["id"]
-    foreign = second_item(db, msid, mtid)
-    store.close()
-    fields = form_of(page(w).text)
-    post_answer(w, {**fields, "item_id": str(foreign)})
-    a = attempt_row(w)
-    assert (a["score"], a["max_score"], a["correct_answers"], a["incorrect_answers"]) == (0, 0, 0, 0)
-    store = open_db()
-    assert store.db.execute("SELECT COUNT(*) FROM topic_progress").fetchone()[0] == 0
-    store.close()
-
-
-def test_replaying_the_same_answer_request_does_not_score_twice(quiz_world):
-    w = quiz_world
-    fields = form_of(page(w).text)
-    post_answer(w, fields)
-    post_answer(w, fields)
-    post_answer(w, fields)
-    assert attempt_row(w)["max_score"] == 1
-
-
-def test_leaving_the_choice_empty_skips_once_and_moves_on(quiz_world):
-    w = quiz_world
-    first = re.search(r"What is \d\+\d\?", page(w).text).group(0)
-    fields = form_of(page(w).text)
-    post_answer(w, fields, chosen="")
-    second = re.search(r"What is \d\+\d\?", page(w).text).group(0)
-    assert first != second
-    a = attempt_row(w)
-    assert (a["correct_answers"], a["incorrect_answers"]) == (0, 0)
-
-
-def test_finishing_the_diagnostic_does_not_use_a_closed_database(quiz_world, monkeypatch):
-    """Found in review: finish_attempt ran after the request's connection had been closed, so completing crashed with a 500."""
-    w = quiz_world
-    for _ in range(3):
-        post_answer(w, form_of(page(w).text))
-    monkeypatch.setattr(appmod.quiz_flow, "submit_answer", lambda *a, **k: SimpleNamespace(state="complete"))
-    r = w.c.post(f"/subjects/{w.sid}/quiz/attempt/{w.attempt}/diagnostic/answer",
-                 data={"question": "Explain addition", "answer": "adding numbers together", "topic_id": str(w.tid), "csrf": session_csrf(w.c)})
-    assert r.status_code == 303 and "/quiz/result/" in r.headers["location"]
-    assert attempt_row(w)["is_active"] == 0
-
-
 # ================================================================================================ page security
-
-@pytest.mark.parametrize("path", ["/login", "/subjects", "/account"])
-def test_ordinary_pages_keep_script_src_none(quiz_world, path):
-    csp = quiz_world.c.get(path).headers["content-security-policy"]
-    assert "script-src 'none'" in csp and "unsafe-inline'" not in csp.split("script-src", 1)[1].split(";")[0]
-
-
-def test_the_question_page_allows_only_its_own_script_by_nonce(quiz_world):
-    w = quiz_world
-    r1, r2 = page(w), page(w)
-    csp1 = r1.headers["content-security-policy"]
-    script_src = csp1.split("script-src", 1)[1].split(";")[0]
-    nonce = re.search(r"'nonce-([\w\-]+)'", script_src).group(1)
-    assert "unsafe-inline" not in script_src and "'none'" not in script_src
-    assert f"<script nonce='{nonce}'>" in r1.text or f'<script nonce="{nonce}">' in r1.text
-    assert nonce not in r2.headers["content-security-policy"], "a new nonce on every response"
-    assert "frame-ancestors 'none'" in csp1 and r1.headers["x-frame-options"] == "DENY"
-
-
-def test_the_pages_around_the_quiz_do_not_inherit_the_nonce(quiz_world):
-    w = quiz_world
-    page(w)
-    assert "nonce" not in w.c.get(f"/subjects/{w.sid}").headers["content-security-policy"]
-
 
 def events(w):
     store = open_db()
@@ -271,38 +171,3 @@ def events(w):
     return n
 
 
-def test_a_proctoring_event_without_the_csrf_token_is_refused(quiz_world):
-    w = quiz_world
-    url = f"/subjects/{w.sid}/quiz/attempt/{w.attempt}/proctor"
-    assert w.c.post(url, json={"event_type": "tab_switch", "details": {}}).status_code == 403
-    assert w.c.post(url, json={"event_type": "tab_switch", "details": {}}, headers={"X-CSRF-Token": "wrong"}).status_code == 403
-    assert events(w) == 0 and attempt_row(w)["behavior_score"] == 100
-
-
-def test_a_proctoring_event_with_the_token_is_recorded_and_bad_ones_are_not(quiz_world):
-    w = quiz_world
-    url = f"/subjects/{w.sid}/quiz/attempt/{w.attempt}/proctor"
-    good = {"X-CSRF-Token": session_csrf(w.c)}
-    assert w.c.post(url, json={"event_type": "tab_switch", "details": {}}, headers=good).json() == {"ok": True}
-    assert events(w) == 1
-    assert w.c.post(url, json={"event_type": "rm -rf", "details": {}}, headers=good).json() == {"ok": False}
-    assert w.c.post(url, content=b"not json", headers=good).status_code == 400
-    assert events(w) == 1
-
-
-def test_the_page_script_sends_the_session_token_with_each_event(quiz_world):
-    w = quiz_world
-    html = page(w).text
-    assert "X-CSRF-Token" in html and session_csrf(w.c) in html
-
-
-def test_another_user_cannot_post_events_or_answers_into_this_attempt(quiz_world):
-    w = quiz_world
-    bob = new_client()
-    sign_up(bob, "bobby")
-    tok = session_csrf(bob)
-    fields = form_of(page(w).text)
-    r = bob.post(f"/subjects/{w.sid}/quiz/attempt/{w.attempt}/answer", data={**fields, "chosen": "1", "csrf": tok})
-    assert r.status_code == 404
-    assert bob.post(f"/subjects/{w.sid}/quiz/attempt/{w.attempt}/proctor", json={"event_type": "tab_switch"}, headers={"X-CSRF-Token": tok}).status_code == 404
-    assert attempt_row(w)["max_score"] == 0 and events(w) == 0
