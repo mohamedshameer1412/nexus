@@ -23,6 +23,7 @@ __pycache__/
 venv/
 
 # Node / Next.js
+node_modules/
 frontend_src/node_modules/
 frontend_src/.next/
 frontend_src/out/
@@ -42,3 +43,8 @@ demo-video/
 NEXUS_All_Screens_Desktop_Mobile/
 NEXUS_UI_Assets/
 NEXUS_All_Screens_Desktop_Mobile.zip
+
+# Kept out of the repository (product documents and design reference files)
+/docs/
+/nexus_project_flow_doc
+/fort.png
