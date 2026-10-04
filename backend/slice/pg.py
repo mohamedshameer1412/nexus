@@ -119,6 +119,9 @@ _pool: dict[tuple, list] = {}
 _pool_lock = threading.Lock()
 _ready: set[tuple] = set()          # schemas already created in this process
 MAX_IDLE = int(os.environ.get("STUDYHUB_PG_POOL", "12"))
+# At most this many engine connections are in use at once; a request past the limit waits (up to 20 s) instead of failing with
+# "too many clients". Keep it below PostgreSQL's max_connections (100 by default) minus Django's own connections.
+_limit = threading.BoundedSemaphore(int(os.environ.get("STUDYHUB_PG_MAX", "40")))
 
 
 def _checkout(key: tuple, schema: str):
@@ -230,7 +233,13 @@ class Connection:
         self.path = path
         self.schema = schema_for(path)
         self._key = (tuple(sorted(dsn().items())), self.schema)
-        self._raw = _checkout(self._key, self.schema)
+        if not _limit.acquire(timeout=20):
+            raise sqlite3.OperationalError("the database is busy: too many requests at once")
+        try:
+            self._raw = _checkout(self._key, self.schema)
+        except BaseException:
+            _limit.release()
+            raise
 
     @property
     def in_transaction(self) -> bool:
@@ -306,7 +315,10 @@ class Connection:
     def close(self) -> None:
         raw, self._raw = self._raw, None
         if raw is not None:
-            _checkin(self._key, raw)
+            try:
+                _checkin(self._key, raw)
+            finally:
+                _limit.release()
 
     def __enter__(self):
         return self

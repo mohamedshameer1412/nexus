@@ -84,7 +84,7 @@ if os.environ.get("DB_ENGINE", "sqlite").lower() in ("postgres", "postgresql"):
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": _d["dbname"], "USER": _d["user"], "PASSWORD": _d["password"], "HOST": _d["host"], "PORT": _d["port"],
-        "CONN_MAX_AGE": 60,
+        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "0")),   # 0: close with the request; a threaded server leaks idle ones
     }}
 elif os.environ.get("DB_ENGINE", "sqlite").lower() == "mysql":
     DATABASES = {"default": {
